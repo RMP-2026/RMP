@@ -1,0 +1,105 @@
+RMP (Rental Market Place) — Complete Mobile UI Design System
+
+Design the complete UI/UX for RMP (Rental Market Place). RMP is a premium B2B marketplace where rental companies own fleets, manage pricing, and manage insurance. Customers browse nearby verified companies and request bookings. This is NOT Turo.
+
+Style: Premium Luxury, Dark Theme, Glassmorphism, Minimal, Apple Human Interface. Inspired by Stripe, Linear, Airbnb, Rivian, and Tesla. Large spacing, 20px rounded corners, soft shadows, beautiful typography, clean hierarchy, highly readable, developer-ready.
+
+Technical constraints:
+
+React 19 + Vite + Tailwind CSS v4
+All styling via inline CSS style={{}} props exclusively — zero Tailwind utility classes
+No external chart libraries — use pure SVG <polyline>/<polygon> with <linearGradient> for line/area charts, and flex divs with percentage heights for bar charts
+No framer-motion, no recharts, no mapping libraries
+Google Fonts Inter — @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap') must be the absolute first line in index.css before @import 'tailwindcss'
+Unsplash images via https://images.unsplash.com/photo-{id}?w={width}&h={height}&fit=crop&auto=format
+useState for interactive calendar date selection
+Design tokens:
+
+C.bg = "#080C14"
+C.bgDeep = "#050709"
+C.surface = "#0E1420"
+C.surfaceHigh = "#141B2B"
+C.glass = "rgba(255,255,255,0.04)"
+C.glassMid = "rgba(255,255,255,0.07)"
+C.glassHigh = "rgba(255,255,255,0.11)"
+C.teal = "#1AE0A8"
+C.tealDim = "#0DB88A"
+C.tealGlow = "rgba(26,224,168,0.15)"
+C.tealFaint = "rgba(26,224,168,0.07)"
+C.text = "#F0F4FF"
+C.textSub = "#7A8599"
+C.textDim = "#3D4860"
+C.border = "rgba(255,255,255,0.07)"
+C.borderMid = "rgba(255,255,255,0.11)"
+C.green = "#22C55E", C.yellow = "#F59E0B", C.red = "#EF4444", C.blue = "#3B82F6"
+Typography scale (inline style objects):
+
+T.xs  = { fontSize: "9px",  lineHeight: "13px" }
+T.sm  = { fontSize: "11px", lineHeight: "16px" }
+T.base= { fontSize: "13px", lineHeight: "19px" }
+T.md  = { fontSize: "15px", lineHeight: "22px" }
+T.lg  = { fontSize: "18px", lineHeight: "26px" }
+T.xl  = { fontSize: "22px", lineHeight: "30px" }
+T.xxl = { fontSize: "28px", lineHeight: "36px" }
+PhoneFrame component: 290×600px, borderRadius 44, background #080C14, border 1.5px solid rgba(255,255,255,0.11), boxShadow 0 32px 80px rgba(0,0,0,0.7). Dynamic island is a 90×28px black pill centered at top (position absolute, top 12, borderRadius 14, background #000, zIndex 20) — NOT a notch. Status bar shows "9:41" time left-aligned with signal/wifi/battery icons right-aligned, all in white, below the dynamic island. Each PhoneFrame receives a label prop rendered as a caption below.
+
+Canvas layout: Dark canvas #050709, padding 60px 80px 80px. Each board is a <section> with a BoardLabel showing board number, title, and screen count. Phones arranged in flexWrap: "wrap", gap: 32. Boards separated by marginBottom: 100.
+
+Build all 5 boards with these exact screens:
+
+Board 1 — Authentication (11 screens):
+
+Splash: Full-screen teal gradient logo, "RMP" wordmark, tagline "Premium Rentals, Verified Companies"
+Onboarding 1: Hero vehicle image (Unsplash), "Browse Verified Fleets" headline, progress dots
+Onboarding 2: Map illustration with pins, "Find Nearby Rentals" headline
+Onboarding 3: Shield/trust icons, "Insured & Protected" headline, Get Started CTA button in teal
+Sign Up: Email + password + name inputs with glassmorphism style, teal Continue button, social auth row
+Login: Email + password inputs, "Forgot Password?" link, teal Sign In button, social auth
+Forgot Password: Email input, instruction text, Send Reset Link button
+OTP Email: 6-digit code boxes with one box highlighted in teal, "Sent to user@email.com"
+OTP Phone: Same 6-box layout, "Sent to +1 (555) 000-0000"
+Create Company: Company name, business type dropdown, license number, fleet size inputs
+Terms: Scrollable terms text with glassmorphism card, Accept & Continue button
+Board 2 — Customer Marketplace (8 screens):
+
+Home: Greeting header "Good morning, Alex", teal search bar, "Nearby Companies" horizontal scroll cards showing company name/rating/vehicle count, "Featured Vehicles" grid with Unsplash car photos, bottom tab bar (Home/Search/Wishlist/Messages/Profile)
+Map Search: Full-screen CSS/SVG map simulation — dark gradient background linear-gradient(160deg, #0A1628, #0D1F3C), SVG grid overlay at 8% opacity with teal lines, road lines as diagonal SVG paths, price pin badges as positioned absolute divs showing "$89/day" in white on teal background with borderRadius 20, draggable bottom sheet with vehicle cards
+Vehicle Detail: Hero Unsplash car image (full width, height 200), company badge overlay, vehicle name/model, star rating, price per day in teal, specs row (seats/doors/transmission/fuel), "About this vehicle" description, glassmorphism feature chips, Book Now CTA
+Search Filters: "Filters" header with X close, Price Range slider visual, Vehicle Type chips (SUV/Sedan/Truck/Van/Luxury), Transmission toggle, Features checkboxes, Apply Filters button
+Wishlist: Grid of saved vehicle cards with heart icons, company name, price
+Messages: Conversation list with company avatars, last message preview, timestamp, unread badge in teal
+Notifications: List of notification items — booking confirmed (green dot), payment processed (blue dot), new message (teal dot), each with icon + title + body + timestamp
+Profile: Avatar circle with initials, name/email, stats row (trips/reviews/member since), settings list items (Payment Methods, Documents, Notifications, Help, Sign Out)
+Board 3 — Booking Flow (7 screens):
+
+Calendar: Month view "July 2025", 7-column day grid, range highlighting — selected start/end days in solid teal circle, days between in tealFaint background, non-selected days in textSub. Use useState(28) for startDay and useState(30) for endDay. Below calendar: pickup/dropoff time selectors
+Trip Summary: Vehicle thumbnail + name, company name, date range "Jul 28 – Jul 30", duration "2 days", cost breakdown rows (Daily Rate × 2, Insurance, Service Fee, Total in teal and larger)
+ID Verification: Camera/document icon, "Upload Your License" heading, Front Side and Back Side upload boxes as dashed bordered areas, instruction text
+Payment: Saved card display (last 4 digits, card brand icon, glassmorphism), Add New Card option, Promo Code input, total amount, Confirm & Pay button in teal
+Confirmation: Animated checkmark circle in teal, "Booking Requested!" heading, booking reference number, "The company will review your request within 2 hours" message, View Booking Details button
+Booking Approved: Green checkmark, "Booking Approved!", pickup address, pickup time, QR code placeholder square, Contact Company button
+Booking Cancelled: Red X icon, "Booking Cancelled", reason text, refund amount/timeline info, Browse More Vehicles button
+Board 4 — Company Dashboard (6 screens):
+
+Dashboard: "Good morning, Apex Rentals", today's stats row (Active Bookings / Revenue / Fleet Utilization as glassmorphism cards), SVG revenue line chart with teal gradient area fill over 12 data points, Recent Bookings list (3 items with customer name/vehicle/status badge), bottom tab bar (Dashboard/Bookings/Fleet/Analytics/Payouts)
+Bookings: Segmented control (Pending/Active/Completed), booking cards with customer avatar, vehicle, date, price, action buttons (Approve in teal / Decline in red) for pending state
+Fleet Management: "My Fleet (12 vehicles)" header, vehicle list cards with Unsplash car photos, vehicle name, status badge (Available=green/Rented=teal/Maintenance=yellow), quick actions
+Add Vehicle: Form with vehicle photos upload area, Make/Model/Year dropdowns, daily rate input, features checkboxes, description textarea, Submit Vehicle button
+Analytics: Revenue bar chart (12 months, bars as flex divs with percentage heights), top metrics (Total Revenue, Bookings, Avg Rating), utilization donut simulation, top performing vehicles list
+Payouts: Available Balance in large teal text, Withdraw button, payout history list (date/amount/status), bank account info card
+Board 5 — Admin Dashboard (4 screens):
+
+Platform Overview: "RMP Admin" header, 4 platform KPI cards (Total Companies/Active Users/Monthly Revenue/Bookings), alert banner in yellow for pending verifications, dual-bar chart comparing this month vs last month, recent activity feed
+Companies: Search bar, company list with logo placeholder/name/fleet size/status badge (Verified=green/Pending=yellow/Suspended=red), approve/suspend action buttons
+Users: User list with avatar initials, name/email, join date, trips count, status badge, filter chips (All/Active/Inactive/Flagged)
+Analytics: Platform-wide SVG line chart, regional breakdown table (city/bookings/revenue columns), top companies leaderboard, growth metrics
+After Board 5, add a Design Tokens section showing: color swatches grid for all C tokens with hex values, typography scale samples at each T size, component examples (button variants, badge styles, input field, glassmorphism card).
+
+Add a footer with "RMP Design System v1.0 — Board 1–5 Complete — 35 Screens" centered in textSub color.
+
+Glassmorphism pattern: background: rgba(255,255,255,0.04–0.11), backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.07–0.11)", borderRadius: 16–20. Use consistently for cards, modals, input fields, bottom sheets.
+
+Bottom tab bar pattern: Fixed at bottom, background: rgba(8,12,20,0.95), backdropFilter: blur(20px), borderTop: "1px solid rgba(255,255,255,0.07)", 5 equally spaced icon+label items, active item in teal, inactive in textSub.
+
+Input field pattern: background: rgba(255,255,255,0.04), border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, color: C.text, placeholder in textSub, focus border in teal.
+
