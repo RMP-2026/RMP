@@ -2,13 +2,15 @@
   "expo": {
     "name": "RMP",
     "slug": "RMP",
+    "owner": "rmp1s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rmp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.rmp_1.RMP"
     },
     "android": {
       "adaptiveIcon": {
@@ -50,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "70f1d980-ecc9-46ba-9e16-78941af8bd85"
+      }
     }
   }
 }
