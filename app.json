@@ -10,7 +10,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.rmp_1.RMP"
+      "bundleIdentifier": "com.rmp.RMP"
     },
     "android": {
       "adaptiveIcon": {

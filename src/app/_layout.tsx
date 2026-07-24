@@ -6,7 +6,7 @@ import * as Sentry from "@sentry/react-native";
 import "../../global.css";
 
 Sentry.init({
-  dsn: "https://17b1a135fda5ddc6d5d0cc3e0607150b@o4511768792334336.ingest.us.sentry.io/4511771788902400",
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   sendDefaultPii: true,
   tracesSampleRate: 1.0,
   enableLogs: true,
