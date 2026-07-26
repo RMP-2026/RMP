@@ -47,7 +47,8 @@
           "project": "react-native",
           "organization": "rental-marketplace"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
