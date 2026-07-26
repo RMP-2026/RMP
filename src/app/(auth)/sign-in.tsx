@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { Href, router } from "expo-router";
 import { cssInterop } from "nativewind";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -21,7 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 cssInterop(LinearGradient, { className: "style" });
 cssInterop(Image, { className: "style" });
 
-type Step = "credentials" | "verify";
+type Step = "credentials" | "verify" | "reset";
 
 const navigateAfterAuth = ({
   session,
@@ -45,8 +45,11 @@ export default function SignInScreen() {
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [ssoStrategy, setSsoStrategy] = useState<"oauth_apple" | "oauth_google" | null>(null);
+  const emailInputRef = useRef<TextInput>(null);
 
   const isBusy = signInFetchStatus === "fetching" || signUpFetchStatus === "fetching";
   const isSsoBusy = ssoStrategy !== null;
@@ -57,8 +60,7 @@ export default function SignInScreen() {
     try {
       const { createdSessionId, setActive } = await startSSOFlow({ strategy });
       if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId });
-        router.replace("/");
+        await setActive({ session: createdSessionId, navigate: navigateAfterAuth });
       }
     } catch (err) {
       console.error("SSO error:", JSON.stringify(err, null, 2));
@@ -104,6 +106,51 @@ export default function SignInScreen() {
     }
     if (signUp.status === "complete") {
       await signUp.finalize({ navigate: navigateAfterAuth });
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setFormError(null);
+
+    if (!emailAddress) {
+      setFormError("Enter your email address first.");
+      return;
+    }
+
+    if (!signIn.identifier) {
+      const { error: createError } = await signIn.create({ identifier: emailAddress });
+      if (createError) {
+        setFormError(createError.longMessage ?? "Couldn't find an account with that email.");
+        return;
+      }
+    }
+
+    const { error } = await signIn.resetPasswordEmailCode.sendCode();
+    if (error) {
+      setFormError(error.longMessage ?? "Couldn't send a reset code. Please try again.");
+      return;
+    }
+    setStep("reset");
+  };
+
+  const handleResetPassword = async () => {
+    setFormError(null);
+    const { error: verifyError } = await signIn.resetPasswordEmailCode.verifyCode({
+      code: resetCode,
+    });
+    if (verifyError) {
+      setFormError(verifyError.longMessage ?? "Invalid code.");
+      return;
+    }
+    const { error: submitError } = await signIn.resetPasswordEmailCode.submitPassword({
+      password: newPassword,
+    });
+    if (submitError) {
+      setFormError(submitError.longMessage ?? "Couldn't reset your password.");
+      return;
+    }
+    if (signIn.status === "complete") {
+      await signIn.finalize({ navigate: navigateAfterAuth });
     }
   };
 
@@ -182,6 +229,72 @@ export default function SignInScreen() {
                   <Text className="text-sm font-medium text-[#19D59D]">Resend code</Text>
                 </Pressable>
               </View>
+            ) : step === "reset" ? (
+              <View className="mt-8">
+                <Text className="text-[28px] font-bold text-white">Reset your password</Text>
+                <Text className="mt-2 text-sm text-slate-400">
+                  Enter the code we sent to {emailAddress} and choose a new password
+                </Text>
+
+                <Text className="mb-2 mt-8 text-[11px] font-semibold tracking-widest text-slate-400">
+                  RESET CODE
+                </Text>
+                <TextInput
+                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
+                  placeholder="123456"
+                  placeholderTextColor="#5B6472"
+                  value={resetCode}
+                  onChangeText={setResetCode}
+                  keyboardType="number-pad"
+                  autoFocus
+                />
+
+                <Text className="mb-2 mt-5 text-[11px] font-semibold tracking-widest text-slate-400">
+                  NEW PASSWORD
+                </Text>
+                <TextInput
+                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
+                  placeholder="••••••••"
+                  placeholderTextColor="#5B6472"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  textContentType="newPassword"
+                />
+
+                {formError ? (
+                  <Text className="mt-3 text-sm text-red-400">{formError}</Text>
+                ) : null}
+
+                <Pressable
+                  className="mt-8 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-emerald-500/40"
+                  disabled={isBusy}
+                  onPress={handleResetPassword}
+                >
+                  <LinearGradient
+                    colors={["#1FDCA6", "#0EB588"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    className="h-full w-full items-center justify-center"
+                  >
+                    {isBusy ? (
+                      <ActivityIndicator color="#05070A" />
+                    ) : (
+                      <Text className="text-base font-bold text-[#05070A]">Reset Password</Text>
+                    )}
+                  </LinearGradient>
+                </Pressable>
+
+                <Pressable
+                  className="mt-6 items-center"
+                  onPress={() => {
+                    setFormError(null);
+                    setStep("credentials");
+                  }}
+                >
+                  <Text className="text-sm font-medium text-[#19D59D]">Back to sign in</Text>
+                </Pressable>
+              </View>
             ) : (
               <View className="mt-8">
                 <Text className="text-[28px] font-bold text-white">Welcome Back</Text>
@@ -191,6 +304,7 @@ export default function SignInScreen() {
                   EMAIL ADDRESS
                 </Text>
                 <TextInput
+                  ref={emailInputRef}
                   className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
                   placeholder="john@email.com"
                   placeholderTextColor="#5B6472"
@@ -220,7 +334,11 @@ export default function SignInScreen() {
                   <Text className="mt-2 text-sm text-red-400">Check your password.</Text>
                 ) : null}
 
-                <Pressable className="mt-3 items-end">
+                <Pressable
+                  className="mt-3 items-end transition-transform active:scale-95 active:opacity-60"
+                  disabled={isBusy}
+                  onPress={handleForgotPassword}
+                >
                   <Text className="text-sm font-medium text-[#19D59D]">Forgot Password?</Text>
                 </Pressable>
 
@@ -230,7 +348,7 @@ export default function SignInScreen() {
 
                 <Pressable
                   className="mt-6 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-emerald-500/40"
-                  disabled={isBusy}
+                  disabled={isBusy || isSsoBusy}
                   onPress={handleContinue}
                 >
                   <LinearGradient
@@ -292,10 +410,13 @@ export default function SignInScreen() {
                 {/* Required mount point for Clerk's bot protection on sign-up */}
                 <View nativeID="clerk-captcha" />
 
-                <View className="mt-8 flex-row justify-center">
+                <Pressable
+                  className="mt-8 flex-row justify-center transition-transform active:scale-95 active:opacity-60"
+                  onPress={() => emailInputRef.current?.focus()}
+                >
                   <Text className="text-sm text-slate-400">New to RMP? </Text>
                   <Text className="text-sm font-semibold text-[#19D59D]">Create Account</Text>
-                </View>
+                </Pressable>
               </View>
             )}
           </ScrollView>
