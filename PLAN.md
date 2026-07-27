@@ -109,12 +109,17 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
       Bookings sitting in `pending` at the moment the company pauses are
       auto-declined by the same pause job (company staff can no longer act on new
       business while paused, so a stale pending request can't be left in limbo):
-      the PaymentIntent authorization is voided (never captured, so this is a void,
-      not a refund), the booking transitions to `declined` — outside the
-      `pending`/`approved`/`active`/`blocked` blocking-status set — which
-      immediately releases its held dates via the `bookings_no_overlap` exclusion
-      constraint, and the customer is notified. This only affects `pending`;
-      `approved`/`active` bookings are unaffected per above
+      for each pending booking, atomically compare-and-set the booking status from
+      `pending` to `declined` (checking the update affected exactly one row); only
+      when that transition succeeds, proceed to void the PaymentIntent authorization
+      (never captured, so this is a void, not a refund) and notify the customer. If
+      the booking is no longer `pending` (already approved/declined by staff, or
+      cancelled by the customer in the instant before the pause job ran), no-op and
+      leave its payment state unchanged. The transition to `declined` — outside the
+      `pending`/`approved`/`active`/`blocked` blocking-status set — immediately
+      releases the booking's held dates via the `bookings_no_overlap` exclusion
+      constraint. This only affects `pending`; `approved`/`active` bookings are
+      unaffected per above
 - [ ] Build staff invite flow with seat-limit enforcement (1 / 5 / unlimited by tier)
 - [ ] Apply rate limiting to document-submission endpoints (Persona/DocuSign calls cost
       money per use)
@@ -168,12 +173,18 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
       signature/date/renter-name/vehicle/price fields placed via DocuSign anchor-tab
       text matching (not a shared master template — every company's contract differs).
       At envelope creation, resolve the company's current *admin-approved*
-      rental-agreement document version and store its `documents.id` on the booking
-      (e.g. `bookings.rentalAgreementDocumentId`) alongside the resulting DocuSign
-      envelope ID — both set once, transactionally, and never overwritten. A
-      company uploading/approving a replacement PDF afterward has no effect on any
-      existing booking: the booking's stored document version and signed envelope
-      remain the permanent record of what was actually presented and signed
+      rental-agreement document version and create a durable outbox record in its own
+      transaction (status `pending`, booking id, document version id, idempotency key)
+      before calling the DocuSign API. On successful envelope creation, transactionally
+      update the outbox to `committed` and store both `documents.id` (e.g.
+      `bookings.rentalAgreementDocumentId`) and the DocuSign envelope ID on the booking
+      — both set once and never overwritten. If the DocuSign call fails or times out,
+      mark the outbox `failed` and surface the error; an Inngest sweep job retries
+      `pending` outbox rows past their TTL with safe idempotency (DocuSign's own
+      idempotency key prevents duplicate envelopes). A company uploading/approving a
+      replacement PDF afterward has no effect on any existing booking: the booking's
+      stored document version and signed envelope remain the permanent record of what
+      was actually presented and signed
 - [ ] Create the Stripe PaymentIntent (manual capture) as a step separate from the
       booking insert — a single Postgres transaction can't include an external
       Stripe API call, so this needs to be an idempotent reservation with
@@ -231,21 +242,29 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
       `payouts` row — checks the company isn't currently `paused` first; if paused, the
       job holds/retries rather than transferring, resuming automatically once the
       company is unpaused
-- [ ] Wire Stripe `charge.dispute.created`/`.closed` webhook: on a lost dispute, insert
-      one immutable, ledger-backed record into `chargebacks` keyed by a unique
-      constraint on the Stripe dispute ID (`stripeDisputeId`) — a webhook retry or an
-      out-of-order `created`/`closed` delivery upserts against that key instead of
-      inserting a duplicate row, so processing is idempotent regardless of delivery
-      order. Reconcile the loss against the company's next not-yet-executed payout
-      (deduct from the `payouts` row before its Stripe Connect transfer fires); if the
-      relevant payout is insufficient to cover the loss or has already been sent,
-      issue a direct invoice/debit for the shortfall instead. Guard the reconciliation
-      step with the same compare-and-set pattern used for `deposit_holds` (Phase 4) —
-      mark the chargeback record's reconciliation state in the same transaction as the
-      payout deduction or invoice/debit call, checking it hasn't already been
-      reconciled — so a retried webhook can never double-deduct or double-invoice.
-      Chargebacks remain a company-vs-customer matter: RMP is not a party to the
-      loss, only the ledger/reconciliation mechanism
+- [ ] Wire Stripe `charge.dispute.created`/`.closed` webhook: insert one immutable event
+      record per webhook delivery, keyed by `stripeDisputeId` plus event type/timestamp
+      (never upserted or mutated — each delivery is a permanent ledger entry), then update
+      a mutable dispute aggregate row (also keyed by `stripeDisputeId`) only through
+      explicitly allowed monotonic state transitions (e.g. `created` → `lost`/`won`/`closed`,
+      but never `lost` → `created`), rejecting any transition that would regress from a
+      terminal state. A webhook retry or out-of-order delivery (e.g. a `created` event
+      arriving after `closed`) writes its immutable event record but skips the aggregate
+      update if the current aggregate state doesn't permit the transition, so late-arriving
+      events can't overwrite a terminal lost/closed state. On a lost dispute, reconciliation
+      with the company's next not-yet-executed payout (deduction from the `payouts` row) or
+      direct invoice/debit creation is an external side effect that must not be treated as
+      atomic with the Postgres transaction. Instead, write a durable reconciliation-outbox
+      row (chargeback id, reconciliation state `pending`, idempotency key) in the same
+      transaction as marking the chargeback record ready for reconciliation, then enqueue an
+      Inngest job (idempotent on the chargeback id) that applies the payout deduction or
+      issues the invoice/debit with retry-safe semantics. On success, mark the outbox
+      `committed`; on failure, `failed` with the error logged. Guard the reconciliation step
+      with the same compare-and-set pattern used for `deposit_holds` (Phase 4) — checking
+      the chargeback's reconciliation state hasn't already transitioned to `committed` — so
+      a retried job can never double-deduct or double-invoice. Chargebacks remain a
+      company-vs-customer matter: RMP is not a party to the loss, only the
+      ledger/reconciliation mechanism
 - [ ] Build handoff/return photo inspection UI (mobile + web), submitting to
       `inspections` with mileage/fuel readings
 - [ ] Build mileage/fuel overage billing: compute `overageAmountCents` from
@@ -264,10 +283,15 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
       is filed, or a claim being resolved while a customer's contest is in flight). Use a
       compare-and-set update (`UPDATE deposit_holds SET status = 'released' WHERE id = $1
       AND status = 'pending'`, checking rows-affected) or a `SELECT ... FOR UPDATE` row
-      lock, and have each of the three flows revalidate the row is still in its
-      nonterminal (`pending`) state inside the same transaction as its Stripe
-      release/capture call, so exactly one release-or-capture outcome ever succeeds per
-      deposit hold
+      lock to claim the state transition, then write a durable operation-outbox row
+      (deposit-hold id, operation type, state `pending`, idempotency key) before calling
+      the Stripe release/capture API. On success, mark the outbox `committed` in the same
+      transaction as updating the deposit-hold's final state; on failure, mark it `failed`.
+      An Inngest sweep job retries `pending` outbox rows past their TTL with safe idempotency
+      (Stripe's idempotency key prevents duplicate release/capture calls). Each of the three
+      flows revalidates the row is still in its nonterminal (`pending`) state and checks the
+      outbox hasn't already committed, so exactly one release-or-capture outcome ever succeeds
+      per deposit hold
 - [ ] Write concurrency test: two overlapping booking inserts, exactly one succeeds
 - [ ] **Done-gate**: full lifecycle (request → KYC → sign → authorize → approve →
       capture → handoff-with-photos-and-deposit-hold → complete → return-with-photos →
@@ -387,7 +411,10 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
   independently) and each booking pins the exact approved document version + envelope
   used at signing time — reflected in Phase 2 (upload/approval) and Phase 4 (DocuSign
   integration) — so a later PDF replacement can never alter an existing booking's
-  contract or envelope source
+  contract or envelope source. Document deletion policy: approved rental-agreement
+  versions referenced by any historical booking (`bookings.rentalAgreementDocumentId`)
+  are excluded from hard deletion and retained under legal hold; only unreferenced
+  KYC/asset documents are eligible for blanket deletion on account closure
 - **Multi-location**: single address per company for v1 — reflected as-is in the
   existing schema, no change needed
 - **Paused companies**: only new activity is blocked (new listings/bookings/staff);
@@ -412,9 +439,12 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
 - [ ] Data retention/deletion (v1 default): on account deletion, apply a per-table
       deletion vs. anonymization policy covering every PII-bearing record, not just
       `users`/`documents`:
-      - **Hard-deleted**: `users` PII fields (name, email, phone, address), `documents`
-        (KYC/business docs, ImageKit assets), `favorites`, `notifications` — no
-        legal/financial reason to retain these past account closure
+      - **Hard-deleted**: `users` PII fields (name, email, phone, address), unreferenced
+        `documents` (KYC/business docs not pinned by any booking, ImageKit assets),
+        `favorites`, `notifications` — no legal/financial reason to retain these past
+        account closure. Approved rental-agreement document versions referenced by
+        `bookings.rentalAgreementDocumentId` are excluded from deletion and retained
+        under the **Legal hold** category below
       - **Anonymized, record kept**: `messages` (sender scrubbed to a placeholder,
         thread retained if the counterparty's booking record must survive),
         `reviews` (text/rating kept for the counterparty's public profile integrity,
