@@ -117,7 +117,7 @@ export default function SignInScreen() {
       return;
     }
 
-    if (!signIn.identifier) {
+    if (signIn.identifier !== emailAddress) {
       const { error: createError } = await signIn.create({ identifier: emailAddress });
       if (createError) {
         setFormError(createError.longMessage ?? "Couldn't find an account with that email.");
@@ -151,6 +151,8 @@ export default function SignInScreen() {
     }
     if (signIn.status === "complete") {
       await signIn.finalize({ navigate: navigateAfterAuth });
+    } else {
+      setFormError("Additional verification is required for this account.");
     }
   };
 
