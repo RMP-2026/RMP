@@ -38,7 +38,7 @@ const buildNavigateAfterAuth =
       return;
     }
     const url = decorateUrl("/terms-privacy");
-    if (url.startsWith("http")) window.location.href = url;
+    if (Platform.OS === "web" && url.startsWith("http")) window.location.href = url;
     else router.replace(url as Href);
   };
 
@@ -80,7 +80,7 @@ export default function SignUpScreen() {
         );
       }
     } catch (err) {
-      console.error("SSO error:", JSON.stringify(err, null, 2));
+      console.error("SSO error:", err instanceof Error ? err.message : String(err));
       setFormError("Something went wrong signing in. Please try again.");
     } finally {
       setSsoStrategy(null);
@@ -116,7 +116,11 @@ export default function SignUpScreen() {
       return;
     }
 
-    await signUp.verifications.sendEmailCode();
+    const { error: sendCodeError } = await signUp.verifications.sendEmailCode();
+    if (sendCodeError) {
+      setFormError(sendCodeError.longMessage ?? "Couldn't send a verification code. Please try again.");
+      return;
+    }
     setStep("verify");
   };
 

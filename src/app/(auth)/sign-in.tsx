@@ -38,7 +38,7 @@ const buildNavigate =
       return;
     }
     const url = decorateUrl(path);
-    if (url.startsWith("http")) window.location.href = url;
+    if (Platform.OS === "web" && url.startsWith("http")) window.location.href = url;
     else router.replace(url as Href);
   };
 
@@ -87,7 +87,7 @@ export default function SignInScreen() {
         );
       }
     } catch (err) {
-      console.error("SSO error:", JSON.stringify(err, null, 2));
+      console.error("SSO error:", err instanceof Error ? err.message : String(err));
       setFormError("Something went wrong signing in. Please try again.");
     } finally {
       setSsoStrategy(null);
@@ -213,7 +213,10 @@ export default function SignInScreen() {
               <EmailOtpStep
                 email={emailAddress}
                 onVerify={handleVerify}
-                onResend={() => signUp.verifications.sendEmailCode()}
+                onResend={async () => {
+                  const { error } = await signUp.verifications.sendEmailCode();
+                  if (error) setFormError(error.longMessage ?? "Couldn't resend the code. Please try again.");
+                }}
                 isBusy={isBusy}
                 formError={formError}
               />
@@ -222,7 +225,10 @@ export default function SignInScreen() {
                 email={emailAddress}
                 title="Verify This Device"
                 onVerify={handleVerifyClientTrust}
-                onResend={() => signIn.mfa.sendEmailCode()}
+                onResend={async () => {
+                  const { error } = await signIn.mfa.sendEmailCode();
+                  if (error) setFormError(error.longMessage ?? "Couldn't resend the code. Please try again.");
+                }}
                 isBusy={isBusy}
                 formError={formError}
               />

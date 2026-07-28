@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { cssInterop } from "nativewind";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import {
   NativeScrollEvent,
@@ -50,6 +50,10 @@ export default function OnboardingScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const isLastSlide = activeIndex === SLIDES.length - 1;
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ x: activeIndex * width, animated: false });
+  }, [width, activeIndex]);
 
   const goToSlide = (index: number) => {
     scrollRef.current?.scrollTo({ x: index * width, animated: true });

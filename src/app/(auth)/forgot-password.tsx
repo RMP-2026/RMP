@@ -28,7 +28,7 @@ export default function ForgotPasswordScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
-  const handleSendResetLink = async () => {
+  const handleSendResetCode = async () => {
     setFormError(null);
     if (!emailAddress) {
       setFormError("Enter your email address.");
@@ -40,7 +40,15 @@ export default function ForgotPasswordScreen() {
       if (signIn.identifier !== emailAddress) {
         const { error: createError } = await signIn.create({ identifier: emailAddress });
         if (createError) {
-          setFormError(createError.longMessage ?? "Couldn't find an account with that email.");
+          if (createError.code === "form_identifier_not_found") {
+            // Don't reveal whether the email is registered — behave like a successful request.
+            router.push({
+              pathname: "/sign-in" as Href,
+              params: { step: "reset", email: emailAddress },
+            });
+            return;
+          }
+          setFormError(createError.longMessage ?? "Something went wrong. Please try again.");
           return;
         }
       }
@@ -96,7 +104,7 @@ export default function ForgotPasswordScreen() {
               Forgot Password?
             </Text>
             <Text className="mt-2 text-body-md text-ink-sub">
-              No worries! Enter your email and we&apos;ll send a reset link.
+              No worries! Enter your email and we&apos;ll send a reset code.
             </Text>
 
             <Text className="mb-2 mt-8 text-label-xs font-semibold tracking-widest text-ink-sub">
@@ -123,7 +131,7 @@ export default function ForgotPasswordScreen() {
             <Pressable
               className="mt-6 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-teal/40"
               disabled={isSending}
-              onPress={handleSendResetLink}
+              onPress={handleSendResetCode}
             >
               <LinearGradient
                 colors={["#1AE0A8", "#00B88A"]}
@@ -134,7 +142,7 @@ export default function ForgotPasswordScreen() {
                 {isSending ? (
                   <ActivityIndicator color="#080C14" />
                 ) : (
-                  <Text className="text-base font-bold text-background">Send Reset Link</Text>
+                  <Text className="text-base font-bold text-background">Send Reset Code</Text>
                 )}
               </LinearGradient>
             </Pressable>

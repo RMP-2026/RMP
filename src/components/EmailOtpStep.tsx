@@ -29,10 +29,11 @@ export function EmailOtpStep({
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const timer = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
     return () => clearInterval(timer);
-  }, [secondsLeft]);
+  }, []);
 
   const handleChangeDigit = (text: string, index: number) => {
     const sanitized = text.replace(/[^0-9]/g, "");
@@ -45,9 +46,17 @@ export function EmailOtpStep({
       return;
     }
 
+    // Retyping into an already-filled box appends to its native value (e.g. "5" + "3" -> "53");
+    // treat that as replacing this box's digit instead of spilling the old one into the next box.
+    const existing = digits[index];
+    const toDistribute =
+      existing && sanitized.length === existing.length + 1 && sanitized.startsWith(existing)
+        ? sanitized.slice(existing.length)
+        : sanitized;
+
     const next = [...digits];
     let cursor = index;
-    for (const char of sanitized.split("")) {
+    for (const char of toDistribute.split("")) {
       if (cursor >= CODE_LENGTH) break;
       next[cursor] = char;
       cursor += 1;
@@ -117,7 +126,7 @@ export function EmailOtpStep({
 
       <Pressable
         className="mt-8 h-14 w-full items-center justify-center overflow-hidden rounded-full shadow-lg shadow-teal/40"
-        disabled={isBusy}
+        disabled={isBusy || digits.some((d) => !d)}
         onPress={() => onVerify(digits.join(""))}
       >
         <LinearGradient
