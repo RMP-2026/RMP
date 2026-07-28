@@ -3,9 +3,10 @@ import { useSignIn, useSignUp, useSSO } from "@clerk/expo";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import { Href, router } from "expo-router";
+import { Href, router, useLocalSearchParams } from "expo-router";
 import { cssInterop } from "nativewind";
 import { useRef, useState } from "react";
+import { EmailOtpStep } from "../../components/EmailOtpStep";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -21,57 +22,102 @@ import { SafeAreaView } from "react-native-safe-area-context";
 cssInterop(LinearGradient, { className: "style" });
 cssInterop(Image, { className: "style" });
 
-type Step = "credentials" | "verify" | "reset";
+type Step = "credentials" | "verify" | "reset" | "clientTrust";
 
-const navigateAfterAuth = ({
-  session,
-  decorateUrl,
-}: {
-  session?: { currentTask?: unknown } | null;
-  decorateUrl: (url: string) => string;
-}) => {
-  if (session?.currentTask) return;
-  const url = decorateUrl("/");
-  if (url.startsWith("http")) window.location.href = url;
-  else router.replace(url as Href);
-};
+const buildNavigate =
+  (path: Href, onBlocked?: () => void) =>
+  ({
+    session,
+    decorateUrl,
+  }: {
+    session?: { currentTask?: unknown } | null;
+    decorateUrl: (url: string) => string;
+  }) => {
+    if (session?.currentTask) {
+      onBlocked?.();
+      return;
+    }
+    const url = decorateUrl(path);
+    if (Platform.OS === "web" && url.startsWith("http")) window.location.href = url;
+    else router.replace(url as Href);
+  };
 
 export default function SignInScreen() {
   const { signIn, errors: signInErrors, fetchStatus: signInFetchStatus } = useSignIn();
   const { signUp, errors: signUpErrors, fetchStatus: signUpFetchStatus } = useSignUp();
   const { startSSOFlow } = useSSO();
+  const params = useLocalSearchParams<{ step?: string; email?: string }>();
 
-  const [step, setStep] = useState<Step>("credentials");
-  const [emailAddress, setEmailAddress] = useState("");
+  const [step, setStep] = useState<Step>(params.step === "reset" ? "reset" : "credentials");
+  const [emailAddress, setEmailAddress] = useState(params.email ?? "");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [emailFieldError, setEmailFieldError] = useState<string | null>(null);
+  const [passwordFieldError, setPasswordFieldError] = useState<string | null>(null);
   const [ssoStrategy, setSsoStrategy] = useState<"oauth_apple" | "oauth_google" | null>(null);
   const emailInputRef = useRef<TextInput>(null);
 
   const isBusy = signInFetchStatus === "fetching" || signUpFetchStatus === "fetching";
   const isSsoBusy = ssoStrategy !== null;
 
+  const onSessionBlocked = () =>
+    setFormError("Your account needs additional setup that this app doesn't support yet. Please contact support.");
+  // Existing users land straight on home; brand-new accounts see terms-privacy once, first.
+  const navigateToHome = buildNavigate("/" as Href, onSessionBlocked);
+  const navigateToTerms = buildNavigate("/terms-privacy" as Href, onSessionBlocked);
+
   const handleSSO = async (strategy: "oauth_apple" | "oauth_google") => {
     setFormError(null);
     setSsoStrategy(strategy);
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({ strategy });
+      const {
+        createdSessionId,
+        setActive,
+        signUp: ssoSignUp,
+        authSessionResult,
+      } = await startSSOFlow({ strategy });
       if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId, navigate: navigateAfterAuth });
+        const navigate = ssoSignUp?.createdSessionId ? navigateToTerms : navigateToHome;
+        await setActive({ session: createdSessionId, navigate });
+      } else if (authSessionResult?.type === "success") {
+        setFormError(
+          "We couldn't finish signing you in. If you don't already have an account, new sign-ups currently require joining our waitlist."
+        );
       }
     } catch (err) {
-      console.error("SSO error:", JSON.stringify(err, null, 2));
+      console.error("SSO error:", err instanceof Error ? err.message : String(err));
       setFormError("Something went wrong signing in. Please try again.");
     } finally {
       setSsoStrategy(null);
     }
   };
 
+  // Resolves whatever signIn.status is after a first-factor attempt: finishes the
+  // sign-in, kicks off the "new device" email-code check, or surfaces an error.
+  const resolveSignInStatus = async () => {
+    if (signIn.status === "complete") {
+      await signIn.finalize({ navigate: navigateToHome });
+      return;
+    }
+    if (signIn.status === "needs_client_trust") {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (error) {
+        setFormError(error.longMessage ?? "Couldn't send a verification code. Please try again.");
+        return;
+      }
+      setStep("clientTrust");
+      return;
+    }
+    setFormError("Additional verification is required for this account.");
+  };
+
   const handleContinue = async () => {
     setFormError(null);
+    setEmailFieldError(!emailAddress ? "Email address is required." : null);
+    setPasswordFieldError(!password ? "Password not filled in." : null);
+    if (!emailAddress || !password) return;
 
     const { error } = await signIn.password({ emailAddress, password });
 
@@ -90,14 +136,20 @@ export default function SignInScreen() {
       return;
     }
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({ navigate: navigateAfterAuth });
-    } else {
-      setFormError("Additional verification is required for this account.");
-    }
+    await resolveSignInStatus();
   };
 
-  const handleVerify = async () => {
+  const handleVerifyClientTrust = async (code: string) => {
+    setFormError(null);
+    const { error } = await signIn.mfa.verifyEmailCode({ code });
+    if (error) {
+      setFormError(error.longMessage ?? "Invalid code.");
+      return;
+    }
+    await resolveSignInStatus();
+  };
+
+  const handleVerify = async (code: string) => {
     setFormError(null);
     const { error } = await signUp.verifications.verifyEmailCode({ code });
     if (error) {
@@ -105,32 +157,10 @@ export default function SignInScreen() {
       return;
     }
     if (signUp.status === "complete") {
-      await signUp.finalize({ navigate: navigateAfterAuth });
+      await signUp.finalize({ navigate: navigateToTerms });
+    } else {
+      setFormError("We couldn't finish setting up your account. Please try again or contact support.");
     }
-  };
-
-  const handleForgotPassword = async () => {
-    setFormError(null);
-
-    if (!emailAddress) {
-      setFormError("Enter your email address first.");
-      return;
-    }
-
-    if (signIn.identifier !== emailAddress) {
-      const { error: createError } = await signIn.create({ identifier: emailAddress });
-      if (createError) {
-        setFormError(createError.longMessage ?? "Couldn't find an account with that email.");
-        return;
-      }
-    }
-
-    const { error } = await signIn.resetPasswordEmailCode.sendCode();
-    if (error) {
-      setFormError(error.longMessage ?? "Couldn't send a reset code. Please try again.");
-      return;
-    }
-    setStep("reset");
   };
 
   const handleResetPassword = async () => {
@@ -149,18 +179,14 @@ export default function SignInScreen() {
       setFormError(submitError.longMessage ?? "Couldn't reset your password.");
       return;
     }
-    if (signIn.status === "complete") {
-      await signIn.finalize({ navigate: navigateAfterAuth });
-    } else {
-      setFormError("Additional verification is required for this account.");
-    }
+    await resolveSignInStatus();
   };
 
   return (
-    <View className="flex-1 bg-[#05070A]">
+    <View className="flex-1 bg-background">
       <StatusBar style="light" />
       <Image
-        source={require("../../../assets/images/auth-bg.png")}
+        source={require("../../../assets/images/auth-screen-bg.png")}
         contentFit="cover"
         className="absolute inset-0 h-full w-full"
       />
@@ -175,89 +201,64 @@ export default function SignInScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Image
-              source={require("../../../assets/images/rmp-logo.png")}
-              contentFit="contain"
-              className="mt-6 h-14 w-14"
-            />
+            {step !== "verify" && step !== "clientTrust" ? (
+              <Image
+                source={require("../../../assets/images/rmp-logo.png")}
+                contentFit="contain"
+                className="mt-6 h-14 w-14"
+              />
+            ) : null}
 
             {step === "verify" ? (
-              <View className="mt-8">
-                <Text className="text-[28px] font-bold text-white">Check your email</Text>
-                <Text className="mt-2 text-sm text-slate-400">
-                  Enter the verification code we sent to {emailAddress}
-                </Text>
-
-                <Text className="mb-2 mt-8 text-[11px] font-semibold tracking-widest text-slate-400">
-                  VERIFICATION CODE
-                </Text>
-                <TextInput
-                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
-                  placeholder="123456"
-                  placeholderTextColor="#5B6472"
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  autoFocus
-                />
-
-                {formError ? (
-                  <Text className="mt-3 text-sm text-red-400">{formError}</Text>
-                ) : null}
-
-                <Pressable
-                  className="mt-8 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-emerald-500/40"
-                  disabled={isBusy}
-                  onPress={handleVerify}
-                >
-                  <LinearGradient
-                    colors={["#1FDCA6", "#0EB588"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    className="h-full w-full items-center justify-center"
-                  >
-                    {isBusy ? (
-                      <ActivityIndicator color="#05070A" />
-                    ) : (
-                      <Text className="text-base font-bold text-[#05070A]">Verify</Text>
-                    )}
-                  </LinearGradient>
-                </Pressable>
-
-                <Pressable
-                  className="mt-6 items-center"
-                  onPress={() => signUp.verifications.sendEmailCode()}
-                >
-                  <Text className="text-sm font-medium text-[#19D59D]">Resend code</Text>
-                </Pressable>
-              </View>
+              <EmailOtpStep
+                email={emailAddress}
+                onVerify={handleVerify}
+                onResend={async () => {
+                  const { error } = await signUp.verifications.sendEmailCode();
+                  if (error) setFormError(error.longMessage ?? "Couldn't resend the code. Please try again.");
+                }}
+                isBusy={isBusy}
+                formError={formError}
+              />
+            ) : step === "clientTrust" ? (
+              <EmailOtpStep
+                email={emailAddress}
+                title="Verify This Device"
+                onVerify={handleVerifyClientTrust}
+                onResend={async () => {
+                  const { error } = await signIn.mfa.sendEmailCode();
+                  if (error) setFormError(error.longMessage ?? "Couldn't resend the code. Please try again.");
+                }}
+                isBusy={isBusy}
+                formError={formError}
+              />
             ) : step === "reset" ? (
               <View className="mt-8">
-                <Text className="text-[28px] font-bold text-white">Reset your password</Text>
-                <Text className="mt-2 text-sm text-slate-400">
+                <Text className="text-heading-xxl font-extrabold text-ink">Reset your password</Text>
+                <Text className="mt-2 text-body-base text-ink-sub">
                   Enter the code we sent to {emailAddress} and choose a new password
                 </Text>
 
-                <Text className="mb-2 mt-8 text-[11px] font-semibold tracking-widest text-slate-400">
+                <Text className="mb-2 mt-8 text-label-xs font-semibold tracking-widest text-ink-sub">
                   RESET CODE
                 </Text>
                 <TextInput
-                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
+                  className="h-14 rounded-2xl border border-white/10 bg-surface px-4 text-body-md text-ink"
                   placeholder="123456"
-                  placeholderTextColor="#5B6472"
+                  placeholderTextColor="#7A8599"
                   value={resetCode}
                   onChangeText={setResetCode}
                   keyboardType="number-pad"
                   autoFocus
                 />
 
-                <Text className="mb-2 mt-5 text-[11px] font-semibold tracking-widest text-slate-400">
+                <Text className="mb-2 mt-5 text-label-xs font-semibold tracking-widest text-ink-sub">
                   NEW PASSWORD
                 </Text>
                 <TextInput
-                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
+                  className="h-14 rounded-2xl border border-white/10 bg-surface px-4 text-body-md text-ink"
                   placeholder="••••••••"
-                  placeholderTextColor="#5B6472"
+                  placeholderTextColor="#7A8599"
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry
@@ -265,24 +266,24 @@ export default function SignInScreen() {
                 />
 
                 {formError ? (
-                  <Text className="mt-3 text-sm text-red-400">{formError}</Text>
+                  <Text className="mt-3 text-body-base text-danger">{formError}</Text>
                 ) : null}
 
                 <Pressable
-                  className="mt-8 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-emerald-500/40"
+                  className="mt-8 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-teal/40"
                   disabled={isBusy}
                   onPress={handleResetPassword}
                 >
                   <LinearGradient
-                    colors={["#1FDCA6", "#0EB588"]}
+                    colors={["#1AE0A8", "#00B88A"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     className="h-full w-full items-center justify-center"
                   >
                     {isBusy ? (
-                      <ActivityIndicator color="#05070A" />
+                      <ActivityIndicator color="#080C14" />
                     ) : (
-                      <Text className="text-base font-bold text-[#05070A]">Reset Password</Text>
+                      <Text className="text-base font-bold text-background">Reset Password</Text>
                     )}
                   </LinearGradient>
                 </Pressable>
@@ -294,130 +295,137 @@ export default function SignInScreen() {
                     setStep("credentials");
                   }}
                 >
-                  <Text className="text-sm font-medium text-[#19D59D]">Back to sign in</Text>
+                  <Text className="text-sm font-medium text-teal">Back to sign in</Text>
                 </Pressable>
               </View>
             ) : (
               <View className="mt-8">
-                <Text className="text-[28px] font-bold text-white">Welcome Back</Text>
-                <Text className="mt-1 text-sm text-slate-400">Sign in to your RMP account</Text>
+                <Text className="text-heading-xxl font-extrabold text-ink">Welcome Back</Text>
+                <Text className="mt-1 text-body-base text-ink-sub">Sign in to your RMP account</Text>
 
-                <Text className="mb-2 mt-8 text-[11px] font-semibold tracking-widest text-slate-400">
+                <Text className="mb-2 mt-8 text-label-xs font-semibold tracking-widest text-ink-sub">
                   EMAIL ADDRESS
                 </Text>
                 <TextInput
                   ref={emailInputRef}
-                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
+                  className="h-14 rounded-2xl border border-white/10 bg-surface px-4 text-body-md text-ink"
                   placeholder="john@email.com"
-                  placeholderTextColor="#5B6472"
+                  placeholderTextColor="#7A8599"
                   value={emailAddress}
-                  onChangeText={setEmailAddress}
+                  onChangeText={(text) => {
+                    setEmailAddress(text);
+                    setEmailFieldError(null);
+                  }}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   textContentType="emailAddress"
                 />
-                {signInErrors?.fields?.identifier || signUpErrors?.fields?.emailAddress ? (
-                  <Text className="mt-2 text-sm text-red-400">Enter a valid email address.</Text>
+                {emailFieldError ? (
+                  <Text className="mt-2 text-body-base text-danger">{emailFieldError}</Text>
+                ) : signInErrors?.fields?.identifier || signUpErrors?.fields?.emailAddress ? (
+                  <Text className="mt-2 text-body-base text-danger">Enter a valid email address.</Text>
                 ) : null}
 
-                <Text className="mb-2 mt-5 text-[11px] font-semibold tracking-widest text-slate-400">
+                <Text className="mb-2 mt-5 text-label-xs font-semibold tracking-widest text-ink-sub">
                   PASSWORD
                 </Text>
                 <TextInput
-                  className="h-14 rounded-2xl border border-white/10 bg-[#0E1420] px-4 text-base text-white"
+                  className="h-14 rounded-2xl border border-white/10 bg-surface px-4 text-body-md text-ink"
                   placeholder="••••••••"
-                  placeholderTextColor="#5B6472"
+                  placeholderTextColor="#7A8599"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setPasswordFieldError(null);
+                  }}
                   secureTextEntry
                   textContentType="password"
                 />
-                {signInErrors?.fields?.password || signUpErrors?.fields?.password ? (
-                  <Text className="mt-2 text-sm text-red-400">Check your password.</Text>
+                {passwordFieldError ? (
+                  <Text className="mt-2 text-body-base text-danger">{passwordFieldError}</Text>
+                ) : signInErrors?.fields?.password || signUpErrors?.fields?.password ? (
+                  <Text className="mt-2 text-body-base text-danger">Check your password.</Text>
                 ) : null}
 
                 <Pressable
                   className="mt-3 items-end transition-transform active:scale-95 active:opacity-60"
                   disabled={isBusy}
-                  onPress={handleForgotPassword}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/forgot-password" as Href,
+                      params: emailAddress ? { email: emailAddress } : undefined,
+                    })
+                  }
                 >
-                  <Text className="text-sm font-medium text-[#19D59D]">Forgot Password?</Text>
+                  <Text className="text-sm font-medium text-teal">Forgot Password?</Text>
                 </Pressable>
 
                 {formError ? (
-                  <Text className="mt-3 text-sm text-red-400">{formError}</Text>
+                  <Text className="mt-3 text-body-base text-danger">{formError}</Text>
                 ) : null}
 
                 <Pressable
-                  className="mt-6 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-emerald-500/40"
+                  className="mt-6 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-teal/40"
                   disabled={isBusy || isSsoBusy}
                   onPress={handleContinue}
                 >
                   <LinearGradient
-                    colors={["#1FDCA6", "#0EB588"]}
+                    colors={["#1AE0A8", "#00B88A"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     className="h-full w-full items-center justify-center"
                   >
                     {isBusy ? (
-                      <ActivityIndicator color="#05070A" />
+                      <ActivityIndicator color="#080C14" />
                     ) : (
-                      <Text className="text-base font-bold text-[#05070A]">Sign In</Text>
+                      <Text className="text-base font-bold text-background">Sign In</Text>
                     )}
                   </LinearGradient>
                 </Pressable>
 
                 <View className="mt-6 flex-row items-center">
                   <View className="h-px flex-1 bg-white/10" />
-                  <Text className="mx-3 text-xs font-medium tracking-widest text-slate-500">
+                  <Text className="mx-3 text-caption-sm font-medium tracking-widest text-ink-sub">
                     OR
                   </Text>
                   <View className="h-px flex-1 bg-white/10" />
                 </View>
 
-                <Pressable
-                  className="mt-6 h-14 flex-row items-center justify-center gap-2 rounded-full border border-white/10 bg-[#12161D]"
-                  disabled={isBusy || isSsoBusy}
-                  onPress={() => handleSSO("oauth_apple")}
-                >
-                  {ssoStrategy === "oauth_apple" ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                      <Text className="text-base font-semibold text-white">
-                        Continue with Apple
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                <View className="mt-6 flex-row gap-3">
+                  <Pressable
+                    className="h-14 flex-1 items-center justify-center rounded-full border border-white/10 bg-surface-high"
+                    disabled={isBusy || isSsoBusy}
+                    onPress={() => handleSSO("oauth_apple")}
+                  >
+                    {ssoStrategy === "oauth_apple" ? (
+                      <ActivityIndicator color="#F0F4FF" />
+                    ) : (
+                      <Ionicons name="logo-apple" size={22} color="#F0F4FF" />
+                    )}
+                  </Pressable>
 
-                <Pressable
-                  className="mt-3 h-14 flex-row items-center justify-center gap-2 rounded-full border border-white/10 bg-[#12161D]"
-                  disabled={isBusy || isSsoBusy}
-                  onPress={() => handleSSO("oauth_google")}
-                >
-                  {ssoStrategy === "oauth_google" ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="logo-google" size={20} color="#FFFFFF" />
-                      <Text className="text-base font-semibold text-white">
-                        Continue with Google
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                  <Pressable
+                    className="h-14 flex-1 items-center justify-center rounded-full border border-white/10 bg-surface-high"
+                    disabled={isBusy || isSsoBusy}
+                    onPress={() => handleSSO("oauth_google")}
+                  >
+                    {ssoStrategy === "oauth_google" ? (
+                      <ActivityIndicator color="#F0F4FF" />
+                    ) : (
+                      <Ionicons name="logo-google" size={22} color="#F0F4FF" />
+                    )}
+                  </Pressable>
+                </View>
 
                 {/* Required mount point for Clerk's bot protection on sign-up */}
                 <View nativeID="clerk-captcha" />
 
                 <Pressable
                   className="mt-8 flex-row justify-center transition-transform active:scale-95 active:opacity-60"
-                  onPress={() => emailInputRef.current?.focus()}
+                  onPress={() => router.push("/sign-up" as Href)}
                 >
-                  <Text className="text-sm text-slate-400">New to RMP? </Text>
-                  <Text className="text-sm font-semibold text-[#19D59D]">Create Account</Text>
+                  <Text className="text-sm text-ink-sub">New to RMP? </Text>
+                  <Text className="text-sm font-semibold text-teal">Create Account</Text>
                 </Pressable>
               </View>
             )}

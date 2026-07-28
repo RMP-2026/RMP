@@ -1,16 +1,14 @@
 {
   "expo": {
-    "name": "RMP",
-    "slug": "RMP",
-    "owner": "rmp1s-team",
+    "name": "StickerSmash",
+    "slug": "StickerSmash",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rmp",
+    "scheme": "stickersmash",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.rmp.RMP"
+      "icon": "./assets/expo.icon"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,12 +17,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.rmp_1.RMP"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
-      "bundler": "metro",
-      "output": "server",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -36,29 +32,11 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ],
-      "expo-secure-store",
-      "@clerk/expo",
-      "expo-dev-client",
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "react-native",
-          "organization": "rental-marketplace"
-        }
-      ],
-      "expo-web-browser"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "70f1d980-ecc9-46ba-9e16-78941af8bd85"
-      }
     }
   }
 }
