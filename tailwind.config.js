@@ -21,6 +21,7 @@ module.exports = {
         success: "#22C55E",
         warning: "#F59E0B",
         danger: "#EF4444",
+        info: "#3B82F6",
       },
       fontSize: {
         "heading-xxl": ["28px", "36px"],

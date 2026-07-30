@@ -1,10 +1,28 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+export const userRoleEnum = pgEnum("user_role", ["customer", "host", "admin"]);
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(), // Clerk user ID
   email: text("email").notNull(),
   name: text("name"),
   imageUrl: text("image_url"),
+  role: userRoleEnum("role").notNull().default("customer"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const waitlistEntryStatusEnum = pgEnum("waitlist_entry_status", [
+  "pending",
+  "invited",
+  "completed",
+  "rejected",
+]);
+
+export const waitlistEntries = pgTable("waitlist_entries", {
+  id: text("id").primaryKey(), // Clerk waitlist entry ID
+  email: text("email").notNull(),
+  status: waitlistEntryStatusEnum("status").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

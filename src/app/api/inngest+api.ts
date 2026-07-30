@@ -1,11 +1,23 @@
 import { serve } from "inngest/edge";
 
 import { inngest } from "@/inngest/client";
-import { syncUserCreated } from "@/inngest/functions";
+import {
+  syncUserCreated,
+  syncUserDeleted,
+  syncUserUpdated,
+  syncWaitlistEntryCreated,
+  syncWaitlistEntryUpdated,
+} from "@/inngest/functions";
 
 const handler = serve({
   client: inngest,
-  functions: [syncUserCreated],
+  functions: [
+    syncUserCreated,
+    syncUserUpdated,
+    syncUserDeleted,
+    syncWaitlistEntryCreated,
+    syncWaitlistEntryUpdated,
+  ],
 });
 
 export const GET = handler;

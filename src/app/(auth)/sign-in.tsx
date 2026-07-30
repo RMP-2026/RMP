@@ -22,7 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 cssInterop(LinearGradient, { className: "style" });
 cssInterop(Image, { className: "style" });
 
-type Step = "credentials" | "verify" | "reset" | "clientTrust";
+type Step = "credentials" | "verify" | "reset" | "newPassword" | "clientTrust";
 
 const buildNavigate =
   (path: Href, onBlocked?: () => void) =>
@@ -51,8 +51,9 @@ export default function SignInScreen() {
   const [step, setStep] = useState<Step>(params.step === "reset" ? "reset" : "credentials");
   const [emailAddress, setEmailAddress] = useState(params.email ?? "");
   const [password, setPassword] = useState("");
-  const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [emailFieldError, setEmailFieldError] = useState<string | null>(null);
   const [passwordFieldError, setPasswordFieldError] = useState<string | null>(null);
@@ -115,6 +116,7 @@ export default function SignInScreen() {
 
   const handleContinue = async () => {
     setFormError(null);
+    setResetSuccessMessage(null);
     setEmailFieldError(!emailAddress ? "Email address is required." : null);
     setPasswordFieldError(!password ? "Password not filled in." : null);
     if (!emailAddress || !password) return;
@@ -163,13 +165,24 @@ export default function SignInScreen() {
     }
   };
 
-  const handleResetPassword = async () => {
+  const handleVerifyResetCode = async (code: string) => {
     setFormError(null);
-    const { error: verifyError } = await signIn.resetPasswordEmailCode.verifyCode({
-      code: resetCode,
-    });
+    const { error: verifyError } = await signIn.resetPasswordEmailCode.verifyCode({ code });
     if (verifyError) {
       setFormError(verifyError.longMessage ?? "Invalid code.");
+      return;
+    }
+    setStep("newPassword");
+  };
+
+  const handleSubmitNewPassword = async () => {
+    setFormError(null);
+    if (!newPassword || !confirmPassword) {
+      setFormError("Enter and confirm your new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFormError("Passwords don't match.");
       return;
     }
     const { error: submitError } = await signIn.resetPasswordEmailCode.submitPassword({
@@ -179,7 +192,11 @@ export default function SignInScreen() {
       setFormError(submitError.longMessage ?? "Couldn't reset your password.");
       return;
     }
-    await resolveSignInStatus();
+    setPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setResetSuccessMessage("Your password has been reset. Please sign in with your new password.");
+    setStep("credentials");
   };
 
   return (
@@ -201,7 +218,7 @@ export default function SignInScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {step !== "verify" && step !== "clientTrust" ? (
+            {step !== "verify" && step !== "clientTrust" && step !== "reset" ? (
               <Image
                 source={require("../../../assets/images/rmp-logo.png")}
                 contentFit="contain"
@@ -233,26 +250,37 @@ export default function SignInScreen() {
                 formError={formError}
               />
             ) : step === "reset" ? (
+              <View>
+                <EmailOtpStep
+                  email={emailAddress}
+                  title="Reset Your Password"
+                  onVerify={handleVerifyResetCode}
+                  onResend={async () => {
+                    const { error } = await signIn.resetPasswordEmailCode.sendCode();
+                    if (error) setFormError(error.longMessage ?? "Couldn't resend the code. Please try again.");
+                  }}
+                  isBusy={isBusy}
+                  formError={formError}
+                />
+
+                <Pressable
+                  className="mt-6 items-center"
+                  onPress={() => {
+                    setFormError(null);
+                    setStep("credentials");
+                  }}
+                >
+                  <Text className="text-sm font-medium text-teal">Back to sign in</Text>
+                </Pressable>
+              </View>
+            ) : step === "newPassword" ? (
               <View className="mt-8">
-                <Text className="text-heading-xxl font-extrabold text-ink">Reset your password</Text>
+                <Text className="text-heading-xxl font-extrabold text-ink">Choose a new password</Text>
                 <Text className="mt-2 text-body-base text-ink-sub">
-                  Enter the code we sent to {emailAddress} and choose a new password
+                  Enter and confirm your new password for {emailAddress}
                 </Text>
 
                 <Text className="mb-2 mt-8 text-label-xs font-semibold tracking-widest text-ink-sub">
-                  RESET CODE
-                </Text>
-                <TextInput
-                  className="h-14 rounded-2xl border border-white/10 bg-surface px-4 text-body-md text-ink"
-                  placeholder="123456"
-                  placeholderTextColor="#7A8599"
-                  value={resetCode}
-                  onChangeText={setResetCode}
-                  keyboardType="number-pad"
-                  autoFocus
-                />
-
-                <Text className="mb-2 mt-5 text-label-xs font-semibold tracking-widest text-ink-sub">
                   NEW PASSWORD
                 </Text>
                 <TextInput
@@ -260,7 +288,27 @@ export default function SignInScreen() {
                   placeholder="••••••••"
                   placeholderTextColor="#7A8599"
                   value={newPassword}
-                  onChangeText={setNewPassword}
+                  onChangeText={(text) => {
+                    setNewPassword(text);
+                    setFormError(null);
+                  }}
+                  secureTextEntry
+                  textContentType="newPassword"
+                  autoFocus
+                />
+
+                <Text className="mb-2 mt-5 text-label-xs font-semibold tracking-widest text-ink-sub">
+                  CONFIRM PASSWORD
+                </Text>
+                <TextInput
+                  className="h-14 rounded-2xl border border-white/10 bg-surface px-4 text-body-md text-ink"
+                  placeholder="••••••••"
+                  placeholderTextColor="#7A8599"
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    setFormError(null);
+                  }}
                   secureTextEntry
                   textContentType="newPassword"
                 />
@@ -272,7 +320,7 @@ export default function SignInScreen() {
                 <Pressable
                   className="mt-8 h-14 items-center justify-center overflow-hidden rounded-full shadow-lg shadow-teal/40"
                   disabled={isBusy}
-                  onPress={handleResetPassword}
+                  onPress={handleSubmitNewPassword}
                 >
                   <LinearGradient
                     colors={["#1AE0A8", "#00B88A"]}
@@ -302,6 +350,9 @@ export default function SignInScreen() {
               <View className="mt-8">
                 <Text className="text-heading-xxl font-extrabold text-ink">Welcome Back</Text>
                 <Text className="mt-1 text-body-base text-ink-sub">Sign in to your RMP account</Text>
+                {resetSuccessMessage ? (
+                  <Text className="mt-3 text-body-base text-success">{resetSuccessMessage}</Text>
+                ) : null}
 
                 <Text className="mb-2 mt-8 text-label-xs font-semibold tracking-widest text-ink-sub">
                   EMAIL ADDRESS

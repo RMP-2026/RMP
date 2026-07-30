@@ -2,6 +2,14 @@ import { verifyWebhook } from "@clerk/backend/webhooks";
 
 import { inngest } from "@/inngest/client";
 
+const FORWARDED_EVENTS = new Set([
+  "user.created",
+  "user.updated",
+  "user.deleted",
+  "waitlistEntry.created",
+  "waitlistEntry.updated",
+]);
+
 export async function POST(request: Request) {
   let event;
 
@@ -14,9 +22,9 @@ export async function POST(request: Request) {
     return new Response("Webhook verification failed", { status: 400 });
   }
 
-  if (event.type === "user.created") {
+  if (FORWARDED_EVENTS.has(event.type)) {
     await inngest.send({
-      name: "clerk/user.created",
+      name: `clerk/${event.type}`,
       data: event.data,
     });
   }
