@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -53,8 +54,13 @@ function CompanyCard({ company }: { company: Company }) {
 }
 
 export default function AdminCompaniesScreen() {
+  const params = useLocalSearchParams<{ status?: string }>();
+  const initialFilter = FILTERS.some((f) => f.key === params.status)
+    ? (params.status as (typeof FILTERS)[number]["key"])
+    : "all";
+
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>(initialFilter);
 
   const companies = useMemo(
     () =>

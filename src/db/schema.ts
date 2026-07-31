@@ -8,6 +8,8 @@ export const users = pgTable("users", {
   name: text("name"),
   imageUrl: text("image_url"),
   role: userRoleEnum("role").notNull().default("customer"),
+  clerkUpdatedAt: timestamp("clerk_updated_at").notNull().defaultNow(), // Clerk-side event ordering, guards against out-of-order webhooks
+  deletedAt: timestamp("deleted_at"), // soft-delete marker so a stale create/update can't resurrect a deleted user
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -23,6 +25,7 @@ export const waitlistEntries = pgTable("waitlist_entries", {
   id: text("id").primaryKey(), // Clerk waitlist entry ID
   email: text("email").notNull(),
   status: waitlistEntryStatusEnum("status").notNull(),
+  clerkUpdatedAt: timestamp("clerk_updated_at").notNull().defaultNow(), // Clerk-side event ordering, guards against out-of-order webhooks
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

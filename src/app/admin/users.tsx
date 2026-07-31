@@ -52,10 +52,10 @@ function UserRow({ user }: { user: PlatformUser }) {
 export default function AdminUsersScreen() {
   const [query, setQuery] = useState("");
 
-  const users = useMemo(
-    () => USERS.filter((u) => u.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [query],
-  );
+  const users = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return USERS.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  }, [query]);
 
   return (
     <View className="flex-1 bg-background">

@@ -23,9 +23,15 @@ export async function POST(request: Request) {
   }
 
   if (FORWARDED_EVENTS.has(event.type)) {
+    const ts =
+      "updated_at" in event.data && typeof event.data.updated_at === "number"
+        ? event.data.updated_at
+        : Date.now();
+
     await inngest.send({
       name: `clerk/${event.type}`,
       data: event.data,
+      ts,
     });
   }
 

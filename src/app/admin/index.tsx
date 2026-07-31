@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Href, router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -9,23 +10,40 @@ function ActionRow({
   icon,
   message,
   color,
+  href,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   message: string;
   color: "warning" | "danger";
+  href?: Href;
 }) {
   const styles =
     color === "warning"
       ? { border: "border-warning/25", bg: "bg-warning/10", text: "text-warning", hex: "#F59E0B" }
       : { border: "border-danger/25", bg: "bg-danger/10", text: "text-danger", hex: "#EF4444" };
 
-  return (
-    <Pressable
-      className={`flex-row items-center gap-3 rounded-2xl border ${styles.border} ${styles.bg} p-4 active:opacity-70`}
-    >
+  const content = (
+    <>
       <Ionicons name={icon} size={18} color={styles.hex} />
       <Text className={`flex-1 text-body-md font-semibold ${styles.text}`}>{message}</Text>
-      <Ionicons name="chevron-forward" size={16} color={styles.hex} />
+      {href ? <Ionicons name="chevron-forward" size={16} color={styles.hex} /> : null}
+    </>
+  );
+
+  if (!href) {
+    return (
+      <View className={`flex-row items-center gap-3 rounded-2xl border ${styles.border} ${styles.bg} p-4`}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={() => router.push(href)}
+      className={`flex-row items-center gap-3 rounded-2xl border ${styles.border} ${styles.bg} p-4 active:opacity-70`}
+    >
+      {content}
     </Pressable>
   );
 }
@@ -67,7 +85,12 @@ export default function AdminOverviewScreen() {
             ACTION REQUIRED
           </Text>
           <View className="gap-3">
-            <ActionRow icon="briefcase-outline" message="8 companies pending verification" color="warning" />
+            <ActionRow
+              icon="briefcase-outline"
+              message="8 companies pending verification"
+              color="warning"
+              href={{ pathname: "/admin/companies", params: { status: "Pending" } }}
+            />
             <ActionRow icon="warning-outline" message="2 active disputes need review" color="danger" />
           </View>
         </ScrollView>
