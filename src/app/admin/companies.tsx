@@ -62,6 +62,14 @@ export default function AdminCompaniesScreen() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>(initialFilter);
 
+  // Native tabs keep this screen mounted across visits, so re-sync `filter` whenever
+  // the status param changes (e.g. navigating here again from a different action row).
+  const [syncedStatusParam, setSyncedStatusParam] = useState(params.status);
+  if (params.status !== syncedStatusParam) {
+    setSyncedStatusParam(params.status);
+    setFilter(initialFilter);
+  }
+
   const companies = useMemo(
     () =>
       COMPANIES.filter((c) => filter === "all" || c.status === filter).filter((c) =>
