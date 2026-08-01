@@ -7,7 +7,7 @@ import { PrimaryButton, SecondaryButton } from "../../../components/ui/Button";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { VehicleCard } from "../../../components/ui/VehicleCard";
 import { useFavorites } from "../../../lib/favorites-context";
-import { getVehicleById, MOCK_COMPANY } from "../../../lib/mock-data";
+import { getThreadByCompanyId, getVehicleById, MOCK_COMPANY } from "../../../lib/mock-data";
 import { Routes } from "../../../lib/routes";
 
 export default function CompanyProfileScreen() {
@@ -16,6 +16,8 @@ export default function CompanyProfileScreen() {
   const { isFavorite, toggleFavorite } = useFavorites();
 
   if (!company) return null;
+
+  const thread = getThreadByCompanyId(company.id);
 
   const previewVehicles = company.vehicleIds.slice(0, 3).map(getVehicleById).filter(Boolean);
 
@@ -90,7 +92,7 @@ export default function CompanyProfileScreen() {
               label="Message company"
               fullWidth={false}
               className="flex-1"
-              onPress={() => router.push(Routes.inboxThread("thread-1") as Href)}
+              onPress={() => thread && router.push(Routes.inboxThread(thread.id) as Href)}
             />
           </View>
 

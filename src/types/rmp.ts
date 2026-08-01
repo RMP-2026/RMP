@@ -1,4 +1,5 @@
-export type VehicleType = "SUV" | "Truck" | "Sedan" | "Convertible" | "Van" | "Luxury";
+export const VEHICLE_TYPES = ["SUV", "Truck", "Sedan", "Convertible", "Van", "Luxury"] as const;
+export type VehicleType = (typeof VEHICLE_TYPES)[number];
 
 export type Vehicle = {
   id: string;
@@ -20,6 +21,8 @@ export type Vehicle = {
   transmission: string;
   features: string[];
   companyId: string;
+  unlimitedDistance: boolean;
+  wheelchairAccessible: boolean;
 };
 
 export type CompanyProfile = {

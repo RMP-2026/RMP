@@ -6,7 +6,7 @@ import { EmptyState } from "../../../components/ui/EmptyState";
 import { TripCard } from "../../../components/ui/TripCard";
 import { getVehicleById, MOCK_TRIPS } from "../../../lib/mock-data";
 import { Routes } from "../../../lib/routes";
-import type { TripStatus } from "../../../types/rmp";
+import type { Trip, TripStatus, Vehicle } from "../../../types/rmp";
 
 const TABS = ["Upcoming", "Past", "Canceled"] as const;
 type Tab = (typeof TABS)[number];
@@ -20,10 +20,11 @@ const STATUS_FOR_TAB: Record<Tab, TripStatus[]> = {
 export default function TripsScreen() {
   const [tab, setTab] = useState<Tab>("Upcoming");
 
-  const trips = useMemo(
-    () => MOCK_TRIPS.filter((t) => STATUS_FOR_TAB[tab].includes(t.status)),
-    [tab]
-  );
+  const trips = useMemo(() => {
+    return MOCK_TRIPS.filter((t) => STATUS_FOR_TAB[tab].includes(t.status))
+      .map((trip) => ({ trip, vehicle: getVehicleById(trip.vehicleId) }))
+      .filter((entry): entry is { trip: Trip; vehicle: Vehicle } => entry.vehicle !== undefined);
+  }, [tab]);
 
   return (
     <View className="flex-1 bg-background">
@@ -34,6 +35,8 @@ export default function TripsScreen() {
           {TABS.map((t) => (
             <Pressable
               key={t}
+              accessibilityRole="button"
+              accessibilityState={{ selected: tab === t }}
               onPress={() => setTab(t)}
               className={`h-10 items-center justify-center rounded-full px-4 ${
                 tab === t ? "bg-teal" : "border border-white/10 bg-surface-high"
@@ -53,16 +56,12 @@ export default function TripsScreen() {
         ) : (
           <FlatList
             data={trips}
-            keyExtractor={(t) => t.id}
+            keyExtractor={({ trip }) => trip.id}
             contentContainerClassName="gap-3 px-5 pb-8"
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const vehicle = getVehicleById(item.vehicleId);
-              if (!vehicle) return null;
-              return (
-                <TripCard trip={item} vehicle={vehicle} onPress={() => router.push(Routes.tripDetail(item.id) as Href)} />
-              );
-            }}
+            renderItem={({ item: { trip, vehicle } }) => (
+              <TripCard trip={trip} vehicle={vehicle} onPress={() => router.push(Routes.tripDetail(trip.id) as Href)} />
+            )}
           />
         )}
       </SafeAreaView>

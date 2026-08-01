@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton, SecondaryButton } from "../../../components/ui/Button";
 import { ProgressIndicator } from "../../../components/ui/ProgressIndicator";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
-import { useHostOnboarding } from "../../../lib/host-onboarding-context";
+import { isValidDailyPrice, useHostOnboarding } from "../../../lib/host-onboarding-context";
 import { MOCK_COMPANY } from "../../../lib/mock-data";
 import { VEHICLE_PHOTOS } from "../../../lib/placeholder-images";
 import { Routes } from "../../../lib/routes";
@@ -23,7 +23,7 @@ export default function HostPublishScreen() {
   const missing = [
     !make || !model || !year ? "Vehicle details" : null,
     !homeAddress ? "Home location" : null,
-    !dailyPrice ? "Pricing" : null,
+    !isValidDailyPrice(dailyPrice) ? "Pricing" : null,
   ].filter(Boolean);
 
   const handlePublish = async () => {
@@ -42,6 +42,8 @@ export default function HostPublishScreen() {
   };
 
   if (published) {
+    // TODO: the RAV4 photo, "rav4" vehicle route, and MOCK_COMPANY id below are placeholders
+    // until the create-listing API exists; replace with the created listing's own data then.
     return (
       <View className="flex-1 bg-background">
         <SafeAreaView edges={["top", "bottom"]} className="flex-1 justify-between">
@@ -95,7 +97,7 @@ export default function HostPublishScreen() {
             <View className="gap-2 rounded-2xl border border-white/10 bg-surface p-4">
               <SummaryRow label="Vehicle" value={make && model && year ? `${year} ${make} ${model}` : "Incomplete"} />
               <SummaryRow label="Location" value={homeAddress || "Incomplete"} />
-              <SummaryRow label="Price" value={dailyPrice ? `$${dailyPrice}/day` : "Incomplete"} />
+              <SummaryRow label="Price" value={isValidDailyPrice(dailyPrice) ? `$${dailyPrice}/day` : "Incomplete"} />
             </View>
 
             {missing.length > 0 ? (

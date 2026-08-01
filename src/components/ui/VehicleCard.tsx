@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
+import { VEHICLE_PLACEHOLDER } from "../../lib/placeholder-images";
 import type { Vehicle } from "../../types/rmp";
 import { RatingDisplay } from "./RatingDisplay";
 import { StatusBadge } from "./StatusBadge";
@@ -23,7 +24,7 @@ export function VehicleCard({
       className="flex-row gap-3 rounded-2xl border border-white/10 bg-surface p-3 active:opacity-90"
     >
       <View className="h-24 w-28 overflow-hidden rounded-xl bg-surface-high">
-        <Image source={{ uri: vehicle.photos[0] }} contentFit="cover" className="h-full w-full" />
+        <Image source={{ uri: vehicle.photos[0] ?? VEHICLE_PLACEHOLDER }} contentFit="cover" className="h-full w-full" />
       </View>
       <View className="flex-1 justify-between">
         <View>
@@ -84,7 +85,7 @@ export function VehicleGridCard({
       className="overflow-hidden rounded-2xl border border-white/10 bg-surface active:opacity-90"
     >
       <View className="h-44 w-full bg-surface-high">
-        <Image source={{ uri: vehicle.photos[0] }} contentFit="cover" className="h-full w-full" />
+        <Image source={{ uri: vehicle.photos[0] ?? VEHICLE_PLACEHOLDER }} contentFit="cover" className="h-full w-full" />
         {vehicle.verifiedCompany ? (
           <View className="absolute left-3 top-3">
             <StatusBadge label="All-Star Host" tone="verified" />
@@ -102,9 +103,11 @@ export function VehicleGridCard({
         >
           <Ionicons name={favorited ? "heart" : "heart-outline"} size={18} color={favorited ? "#EF4444" : "#F0F4FF"} />
         </Pressable>
-        <View className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5">
-          <Text className="text-caption-sm text-ink">1/{vehicle.photos.length}</Text>
-        </View>
+        {vehicle.photos.length > 0 ? (
+          <View className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5">
+            <Text className="text-caption-sm text-ink">1/{vehicle.photos.length}</Text>
+          </View>
+        ) : null}
       </View>
       <View className="gap-2 p-4">
         <Text className="text-heading-lg font-extrabold text-ink">

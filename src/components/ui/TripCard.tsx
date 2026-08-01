@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
+import { VEHICLE_PLACEHOLDER } from "../../lib/placeholder-images";
 import type { Trip, Vehicle } from "../../types/rmp";
 
 export function TripCard({
@@ -19,7 +20,7 @@ export function TripCard({
       className="flex-row items-center gap-3 rounded-2xl border border-white/10 bg-surface p-3 active:opacity-90"
     >
       <View className="h-16 w-16 overflow-hidden rounded-xl bg-surface-high">
-        <Image source={{ uri: vehicle.photos[0] }} contentFit="cover" className="h-full w-full" />
+        <Image source={{ uri: vehicle.photos[0] ?? VEHICLE_PLACEHOLDER }} contentFit="cover" className="h-full w-full" />
       </View>
       <View className="flex-1">
         <Text className="text-caption-sm text-ink-sub">

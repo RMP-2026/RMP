@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
+import { VEHICLE_PLACEHOLDER } from "../../lib/placeholder-images";
 import type { Vehicle } from "../../types/rmp";
 import { RatingDisplay } from "./RatingDisplay";
 
@@ -22,7 +23,7 @@ export function SearchMapVehiclePreview({
       className="flex-row items-center gap-3 rounded-2xl border border-white/10 bg-surface p-3 shadow-lg active:opacity-90"
     >
       <View className="h-20 w-24 overflow-hidden rounded-xl bg-surface-high">
-        <Image source={{ uri: vehicle.photos[0] }} contentFit="cover" className="h-full w-full" />
+        <Image source={{ uri: vehicle.photos[0] ?? VEHICLE_PLACEHOLDER }} contentFit="cover" className="h-full w-full" />
       </View>
       <View className="flex-1">
         <Text className="text-body-md font-bold text-ink" numberOfLines={1}>

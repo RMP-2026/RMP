@@ -4,12 +4,13 @@ import { Href, router, useLocalSearchParams } from "expo-router";
 import { Pressable, Share, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../../../components/ui/Button";
-import { getVehicleById } from "../../../../lib/mock-data";
+import { getTripByVehicleId, getVehicleById } from "../../../../lib/mock-data";
 import { Routes } from "../../../../lib/routes";
 
 export default function BookingConfirmationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const vehicle = getVehicleById(id);
+  const trip = vehicle ? getTripByVehicleId(vehicle.id) : undefined;
 
   if (!vehicle) return null;
 
@@ -56,7 +57,10 @@ export default function BookingConfirmationScreen() {
               <Text className="text-body-base text-ink-sub">At {vehicle.location}</Text>
             </View>
           </View>
-          <PrimaryButton label="View trip details" onPress={() => router.replace(Routes.tripDetail("trip-1") as Href)} />
+          <PrimaryButton
+            label="View trip details"
+            onPress={() => router.replace((trip ? Routes.tripDetail(trip.id) : Routes.trips) as Href)}
+          />
         </View>
       </SafeAreaView>
     </View>

@@ -8,6 +8,7 @@ import { AppModal } from "../../../components/ui/BottomSheet";
 import { DestructiveButton, GhostButton } from "../../../components/ui/Button";
 import { ProfileMenuRow } from "../../../components/ui/ProfileMenuRow";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { MOCK_COMPANY } from "../../../lib/mock-data";
 import { GUEST_AVATAR } from "../../../lib/placeholder-images";
 import { Routes } from "../../../lib/routes";
 import { useAppRole } from "../../../lib/roles";
@@ -16,6 +17,7 @@ export default function MoreScreen() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const role = useAppRole();
+  const hostCompanyId = (user?.publicMetadata?.companyId as string | undefined) ?? MOCK_COMPANY.id;
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -27,10 +29,12 @@ export default function MoreScreen() {
     setLoggingOut(true);
     try {
       await signOut();
-    } finally {
-      setLoggingOut(false);
       setLogoutConfirmVisible(false);
       router.replace("/sign-in" as Href);
+    } catch (err) {
+      Alert.alert("Couldn't log out", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -81,20 +85,20 @@ export default function MoreScreen() {
                 label="Become a host"
                 onPress={() => router.push(Routes.becomeHost as Href)}
               />
-            ) : (
+            ) : role === "host" ? (
               <>
                 <ProfileMenuRow
                   icon="storefront-outline"
                   label="View public profile"
-                  onPress={() => router.push(Routes.company("company-1") as Href)}
+                  onPress={() => router.push(Routes.company(hostCompanyId) as Href)}
                 />
                 <ProfileMenuRow
                   icon="car-outline"
                   label="Manage vehicles"
-                  onPress={() => router.push(Routes.companyFleet("company-1") as Href)}
+                  onPress={() => router.push(Routes.companyFleet(hostCompanyId) as Href)}
                 />
               </>
-            )}
+            ) : null}
           </View>
 
           {__DEV__ ? (

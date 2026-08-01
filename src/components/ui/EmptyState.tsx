@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 export function EmptyState({
   icon = "car-outline",
@@ -42,9 +42,9 @@ export function ErrorState({
       <Text className="text-center text-heading-lg font-bold text-ink">{title}</Text>
       <Text className="text-center text-body-base text-ink-sub">{subtitle}</Text>
       {onRetry ? (
-        <Text onPress={onRetry} className="mt-2 text-body-md font-bold text-teal">
-          Try again
-        </Text>
+        <Pressable onPress={onRetry} accessibilityRole="button" hitSlop={8} className="mt-2 active:opacity-70">
+          <Text className="text-body-md font-bold text-teal">Try again</Text>
+        </Pressable>
       ) : null}
     </View>
   );

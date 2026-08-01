@@ -101,12 +101,17 @@ export function DestructiveButton({ label, loading, disabled, fullWidth = true, 
 export function IconButton({
   children,
   className,
+  disabled,
   ...rest
 }: PressableProps & { children: ReactNode }) {
   return (
     <Pressable
       accessibilityRole="button"
-      className={`h-10 w-10 items-center justify-center rounded-full bg-black/40 active:opacity-70 ${className ?? ""}`}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      className={`h-10 w-10 items-center justify-center rounded-full bg-black/40 active:opacity-70 ${
+        disabled ? "opacity-40" : ""
+      } ${className ?? ""}`}
       {...rest}
     >
       {children}

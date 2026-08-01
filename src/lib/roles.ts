@@ -24,10 +24,25 @@ export function useApplyForHost() {
     const token = await getToken();
     if (!token) throw new Error("You must be signed in to become a host.");
 
-    const response = await fetch("/api/host/apply", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const apiOrigin = process.env.EXPO_PUBLIC_API_URL ?? "";
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
+    let response: Response;
+    try {
+      response = await fetch(`${apiOrigin}/api/host/apply`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error("The request timed out. Please try again.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);

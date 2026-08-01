@@ -185,7 +185,6 @@ export default function VehicleDetailScreen() {
 
       <StickyBookingBar
         pricePerDay={vehicle.pricePerDay}
-        total={vehicle.pricePerDay * 3}
         buttonLabel="Continue"
         onPress={() => router.push(Routes.bookingDates(vehicle.id) as Href)}
       />

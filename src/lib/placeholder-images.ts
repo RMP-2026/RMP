@@ -28,3 +28,7 @@ export const GUEST_AVATAR = unsplash("photo-1633332755192-727a05c4013d", 300);
 export const CITY_MIAMI = unsplash("photo-1506966953602-c20cc11f75e3", 900);
 export const CITY_LA = unsplash("photo-1444723121867-7a241cacace9", 900);
 export const CITY_LV = unsplash("photo-1605833556294-ea5c7a74f57d", 900);
+
+export const VEHICLE_PLACEHOLDER =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="100%" height="100%" fill="#1B2233"/></svg>');

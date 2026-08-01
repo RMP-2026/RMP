@@ -28,12 +28,16 @@ export function PriceRangeSlider({
     return Math.round(min + ratio * (max - min));
   };
 
-  const makeResponder = (thumb: "min" | "max") =>
-    PanResponder.create({
+  const makeResponder = (thumb: "min" | "max") => {
+    let startValue = thumb === "min" ? valueMin : valueMax;
+    return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        startValue = thumb === "min" ? valueMin : valueMax;
+      },
       onPanResponderMove: (_evt, gesture) => {
-        const base = thumb === "min" ? toX(valueMin) : toX(valueMax);
+        const base = toX(startValue);
         const x = base + gesture.dx;
         const next = toValue(x);
         if (thumb === "min") {
@@ -43,6 +47,7 @@ export function PriceRangeSlider({
         }
       },
     });
+  };
 
   const minResponder = makeResponder("min");
   const maxResponder = makeResponder("max");

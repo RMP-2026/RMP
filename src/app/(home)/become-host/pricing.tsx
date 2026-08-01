@@ -5,7 +5,7 @@ import { PrimaryButton } from "../../../components/ui/Button";
 import { ProgressIndicator } from "../../../components/ui/ProgressIndicator";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { SelectField } from "../../../components/ui/SelectField";
-import { useHostOnboarding } from "../../../lib/host-onboarding-context";
+import { isValidDailyPrice, useHostOnboarding } from "../../../lib/host-onboarding-context";
 import { Routes } from "../../../lib/routes";
 
 const DISCOUNTS = ["0%", "10%", "15%", "20%"];
@@ -59,7 +59,7 @@ export default function HostPricingScreen() {
         <View className="px-5 pb-2">
           <PrimaryButton
             label="Continue"
-            disabled={!dailyPrice}
+            disabled={!isValidDailyPrice(dailyPrice)}
             onPress={() => router.push(Routes.becomeHostPublish as Href)}
           />
         </View>

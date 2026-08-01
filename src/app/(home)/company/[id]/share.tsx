@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, Share as RNShare, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton, SecondaryButton } from "../../../../components/ui/Button";
@@ -11,6 +11,13 @@ export default function CompanyShareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const company = id === MOCK_COMPANY.id ? MOCK_COMPANY : null;
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    };
+  }, []);
 
   if (!company) return null;
 
@@ -34,8 +41,9 @@ export default function CompanyShareScreen() {
             <SecondaryButton label="Download" onPress={() => {}} />
             <Pressable
               onPress={() => {
+                if (copyTimer.current) clearTimeout(copyTimer.current);
                 setCopied(true);
-                setTimeout(() => setCopied(false), 1800);
+                copyTimer.current = setTimeout(() => setCopied(false), 1800);
               }}
               className="items-center py-2 active:opacity-70"
             >

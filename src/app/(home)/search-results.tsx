@@ -21,18 +21,19 @@ const QUICK_FILTERS: { label: string; type?: VehicleType; allStar?: boolean; und
 type LoadState = "loading" | "loaded" | "error" | "empty";
 
 export default function SearchResultsScreen() {
-  const { location, fromLabel, untilLabel } = useSearch();
+  const { location, fromLabel, untilLabel, filters } = useSearch();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeQuick, setActiveQuick] = useState<string[]>([]);
   const [state] = useState<LoadState>("loaded");
 
   const results = useMemo(() => {
     let list = MOCK_VEHICLES;
+    if (filters.vehicleTypes.length > 0) list = list.filter((v) => filters.vehicleTypes.includes(v.type));
     if (activeQuick.includes("SUV")) list = list.filter((v) => v.type === "SUV");
     if (activeQuick.includes("Under $100")) list = list.filter((v) => v.pricePerDay < 100);
     if (activeQuick.includes("All-star")) list = list.filter((v) => v.verifiedCompany);
     return list;
-  }, [activeQuick]);
+  }, [activeQuick, filters.vehicleTypes]);
 
   const toggleQuick = (label: string) =>
     setActiveQuick((prev) => (prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]));

@@ -8,6 +8,9 @@ import type {
   Vehicle,
 } from "../types/rmp";
 import {
+  CITY_LA,
+  CITY_LV,
+  CITY_MIAMI,
   COMPANY_AVATAR,
   COMPANY_BANNER,
   VEHICLE_PHOTOS,
@@ -62,6 +65,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
       "All-wheel drive",
     ],
     companyId: "company-1",
+    unlimitedDistance: true,
+    wheelchairAccessible: false,
   },
   {
     id: "model3",
@@ -83,6 +88,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     transmission: "Automatic",
     features: ["Autopilot", "Premium audio", "Glass roof", "Supercharging"],
     companyId: "company-1",
+    unlimitedDistance: true,
+    wheelchairAccessible: true,
   },
   {
     id: "bronco",
@@ -104,6 +111,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     transmission: "Automatic",
     features: ["Removable doors", "Off-road tires", "Backup camera"],
     companyId: "company-1",
+    unlimitedDistance: false,
+    wheelchairAccessible: false,
   },
   {
     id: "cherokee",
@@ -125,6 +134,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     transmission: "Automatic",
     features: ["Panoramic sunroof", "Leather seats", "Navigation"],
     companyId: "company-1",
+    unlimitedDistance: true,
+    wheelchairAccessible: false,
   },
   {
     id: "wrangler",
@@ -146,6 +157,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     transmission: "Manual",
     features: ["Removable top", "Off-road tires", "Tow hooks"],
     companyId: "company-1",
+    unlimitedDistance: false,
+    wheelchairAccessible: false,
   },
 ];
 
@@ -273,18 +286,39 @@ export const PROTECTION_PLANS: ProtectionPlan[] = [
 ];
 
 export const POPULAR_DESTINATIONS = [
-  { name: "Miami", fromPrice: 41, imageKey: "miami" },
-  { name: "Los Angeles", fromPrice: 48, imageKey: "la" },
-  { name: "Las Vegas", fromPrice: 36, imageKey: "lv" },
+  { name: "Miami", state: "FL", fromPrice: 41, image: CITY_MIAMI },
+  { name: "Los Angeles", state: "CA", fromPrice: 48, image: CITY_LA },
+  { name: "Las Vegas", state: "NV", fromPrice: 36, image: CITY_LV },
 ] as const;
 
 export const VEHICLE_CATEGORIES = [
-  { label: "SUVs", type: "SUV", icon: "car-outline" },
+  { label: "SUVs", type: "SUV", icon: "car-sport-outline" },
   { label: "Luxury", type: "Luxury", icon: "diamond-outline" },
-  { label: "Trucks", type: "Truck", icon: "car-outline" },
+  { label: "Trucks", type: "Truck", icon: "bus-outline" },
   { label: "Convertibles", type: "Convertible", icon: "sunny-outline" },
 ] as const;
 
+export const DATE_OPTIONS = ["Aug 9, 10 AM", "Aug 10, 10 AM", "Aug 11, 10 AM", "Aug 12, 10 AM", "Aug 13, 10 AM"];
+
+export function getDaysBetween(fromLabel: string, untilLabel: string): number {
+  const fromIndex = DATE_OPTIONS.indexOf(fromLabel);
+  const untilIndex = DATE_OPTIONS.indexOf(untilLabel);
+  if (fromIndex === -1 || untilIndex === -1 || untilIndex <= fromIndex) return 1;
+  return untilIndex - fromIndex;
+}
+
 export function getVehicleById(id: string): Vehicle | undefined {
   return MOCK_VEHICLES.find((v) => v.id === id);
+}
+
+export function getTripByVehicleId(vehicleId: string): Trip | undefined {
+  return MOCK_TRIPS.find((t) => t.vehicleId === vehicleId);
+}
+
+export function getCompanyById(companyId: string): CompanyProfile | undefined {
+  return companyId === MOCK_COMPANY.id ? MOCK_COMPANY : undefined;
+}
+
+export function getThreadByCompanyId(companyId: string): MessageThread | undefined {
+  return MOCK_THREADS.find((t) => t.companyId === companyId);
 }

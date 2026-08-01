@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DestructiveButton, PrimaryButton, SecondaryButton } from "../../../components/ui/Button";
 import { RatingDisplay } from "../../../components/ui/RatingDisplay";
 import { StatusBadge, StatusBadgeTone } from "../../../components/ui/StatusBadge";
-import { getVehicleById, MOCK_TRIPS } from "../../../lib/mock-data";
+import { getThreadByCompanyId, getVehicleById, MOCK_TRIPS } from "../../../lib/mock-data";
 import { Routes } from "../../../lib/routes";
 import type { TripStatus } from "../../../types/rmp";
 
@@ -37,6 +37,7 @@ export default function TripDetailScreen() {
 
   if (!trip || !vehicle || !status) return null;
 
+  const thread = getThreadByCompanyId(vehicle.companyId);
   const canCancel = status === "upcoming" || status === "confirmed" || status === "requested";
   const canModify = status === "upcoming" || status === "confirmed";
   const isActive = status === "active";
@@ -85,7 +86,12 @@ export default function TripDetailScreen() {
           </View>
 
           <View className="flex-row gap-3">
-            <SecondaryButton label="Message host" fullWidth={false} className="flex-1" onPress={() => router.push(Routes.inboxThread("thread-1") as Href)} />
+            <SecondaryButton
+              label="Message host"
+              fullWidth={false}
+              className="flex-1"
+              onPress={() => thread && router.push(Routes.inboxThread(thread.id) as Href)}
+            />
             <PrimaryButton
               label="View instructions"
               fullWidth={false}

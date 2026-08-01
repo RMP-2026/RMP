@@ -1,41 +1,52 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Href, router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheet } from "../../../components/ui/BottomSheet";
 import { PrimaryButton } from "../../../components/ui/Button";
 import { DateTimeField } from "../../../components/ui/DateTimeField";
-import { CITY_LA, CITY_LV, CITY_MIAMI } from "../../../lib/placeholder-images";
+import { DATE_OPTIONS, POPULAR_DESTINATIONS, VEHICLE_CATEGORIES } from "../../../lib/mock-data";
 import { Routes } from "../../../lib/routes";
 import { useSearch } from "../../../lib/search-context";
-
-const DATE_OPTIONS = ["Aug 9, 10 AM", "Aug 10, 10 AM", "Aug 11, 10 AM", "Aug 12, 10 AM", "Aug 13, 10 AM"];
-
-const DESTINATIONS = [
-  { name: "Miami", state: "FL", price: 41, image: CITY_MIAMI },
-  { name: "Los Angeles", state: "CA", price: 48, image: CITY_LA },
-  { name: "Las Vegas", state: "NV", price: 36, image: CITY_LV },
-];
-
-const CATEGORIES: { label: string; type: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: "SUVs", type: "SUV", icon: "car-sport-outline" },
-  { label: "Luxury", type: "Luxury", icon: "diamond-outline" },
-  { label: "Trucks", type: "Truck", icon: "bus-outline" },
-  { label: "Convertibles", type: "Convertible", icon: "sunny-outline" },
-];
+import type { VehicleType } from "../../../types/rmp";
 
 const CITY_SUGGESTIONS = ["Miami, FL", "Los Angeles, CA", "Las Vegas, NV", "Orlando, FL", "New York, NY"];
 
 export default function GuestHomeScreen() {
-  const { location, setLocation, fromLabel, setFromLabel, untilLabel, setUntilLabel, recentSearches, addRecentSearch } =
-    useSearch();
+  const {
+    location,
+    setLocation,
+    fromLabel,
+    setFromLabel,
+    untilLabel,
+    setUntilLabel,
+    filters,
+    setFilters,
+    recentSearches,
+    addRecentSearch,
+  } = useSearch();
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   const [locationDraft, setLocationDraft] = useState("");
 
+  const citySuggestions = useMemo(
+    () => CITY_SUGGESTIONS.filter((c) => c.toLowerCase().includes(locationDraft.toLowerCase())),
+    [locationDraft]
+  );
+
+  const closeLocationSheet = () => {
+    setLocationSheetOpen(false);
+    setLocationDraft("");
+  };
+
   const goToResults = () => {
     addRecentSearch(location);
+    router.push(Routes.searchResults as Href);
+  };
+
+  const goToCategory = (type: VehicleType) => {
+    setFilters({ ...filters, vehicleTypes: [type] });
     router.push(Routes.searchResults as Href);
   };
 
@@ -80,7 +91,7 @@ export default function GuestHomeScreen() {
           <Text className="mb-3 mt-8 text-heading-lg font-extrabold text-ink">Popular destinations</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5 px-5">
             <View className="flex-row gap-3">
-              {DESTINATIONS.map((dest) => (
+              {POPULAR_DESTINATIONS.map((dest) => (
                 <Pressable
                   key={dest.name}
                   accessibilityRole="button"
@@ -95,7 +106,7 @@ export default function GuestHomeScreen() {
                   <View className="absolute inset-0 bg-black/25" />
                   <View className="absolute bottom-2 left-2 right-2">
                     <Text className="text-body-base font-bold text-ink">{dest.name}</Text>
-                    <Text className="text-caption-sm text-ink">From ${dest.price}/day</Text>
+                    <Text className="text-caption-sm text-ink">From ${dest.fromPrice}/day</Text>
                   </View>
                 </Pressable>
               ))}
@@ -104,15 +115,15 @@ export default function GuestHomeScreen() {
 
           <Text className="mb-3 mt-8 text-heading-lg font-extrabold text-ink">Browse by category</Text>
           <View className="flex-row flex-wrap gap-3">
-            {CATEGORIES.map((cat) => (
+            {VEHICLE_CATEGORIES.map((cat) => (
               <Pressable
                 key={cat.label}
                 accessibilityRole="button"
-                onPress={() => router.push(Routes.searchResults as Href)}
+                onPress={() => goToCategory(cat.type)}
                 className="items-center gap-2 rounded-2xl border border-white/10 bg-surface px-5 py-4 active:opacity-80"
                 style={{ width: "47%" }}
               >
-                <Ionicons name={cat.icon} size={22} color="#1AE0A8" />
+                <Ionicons name={cat.icon as keyof typeof Ionicons.glyphMap} size={22} color="#1AE0A8" />
                 <Text className="text-body-base font-semibold text-ink">{cat.label}</Text>
               </Pressable>
             ))}
@@ -120,7 +131,7 @@ export default function GuestHomeScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      <BottomSheet visible={locationSheetOpen} onClose={() => setLocationSheetOpen(false)} title="Where to?">
+      <BottomSheet visible={locationSheetOpen} onClose={closeLocationSheet} title="Where to?">
         <View className="gap-4">
           <View className="h-14 flex-row items-center gap-3 rounded-2xl border border-white/10 bg-surface-high px-4">
             <Ionicons name="search" size={18} color="#7A8599" />
@@ -138,7 +149,7 @@ export default function GuestHomeScreen() {
             accessibilityRole="button"
             onPress={() => {
               setLocation("Current location");
-              setLocationSheetOpen(false);
+              closeLocationSheet();
             }}
             className="flex-row items-center gap-3 active:opacity-70"
           >
@@ -154,7 +165,7 @@ export default function GuestHomeScreen() {
                   key={item}
                   onPress={() => {
                     setLocation(item);
-                    setLocationSheetOpen(false);
+                    closeLocationSheet();
                   }}
                   className="flex-row items-center gap-3 py-2.5 active:opacity-70"
                 >
@@ -165,22 +176,24 @@ export default function GuestHomeScreen() {
             </View>
           ) : null}
 
-          <View>
-            <Text className="mb-2 text-label-xs font-semibold tracking-widest text-ink-sub">SUGGESTED CITIES</Text>
-            {CITY_SUGGESTIONS.filter((c) => c.toLowerCase().includes(locationDraft.toLowerCase())).map((item) => (
-              <Pressable
-                key={item}
-                onPress={() => {
-                  setLocation(item);
-                  setLocationSheetOpen(false);
-                }}
-                className="flex-row items-center gap-3 py-2.5 active:opacity-70"
-              >
-                <Ionicons name="location-outline" size={16} color="#7A8599" />
-                <Text className="text-body-md text-ink">{item}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {citySuggestions.length > 0 ? (
+            <View>
+              <Text className="mb-2 text-label-xs font-semibold tracking-widest text-ink-sub">SUGGESTED CITIES</Text>
+              {citySuggestions.map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => {
+                    setLocation(item);
+                    closeLocationSheet();
+                  }}
+                  className="flex-row items-center gap-3 py-2.5 active:opacity-70"
+                >
+                  <Ionicons name="location-outline" size={16} color="#7A8599" />
+                  <Text className="text-body-md text-ink">{item}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
         </View>
       </BottomSheet>
     </View>

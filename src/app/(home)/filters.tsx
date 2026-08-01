@@ -10,9 +10,8 @@ import { SelectField } from "../../components/ui/SelectField";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { MOCK_VEHICLES } from "../../lib/mock-data";
 import { useSearch } from "../../lib/search-context";
-import { DEFAULT_FILTERS, SearchFilters, VehicleType } from "../../types/rmp";
+import { DEFAULT_FILTERS, SearchFilters, VEHICLE_TYPES, VehicleType } from "../../types/rmp";
 
-const VEHICLE_TYPES: VehicleType[] = ["SUV", "Truck", "Sedan", "Convertible"];
 const MAKES = ["Toyota", "Tesla", "Ford", "Jeep"];
 const YEARS = ["2025", "2024", "2023", "2022"];
 const TRANSMISSIONS = ["Automatic", "Manual"];
@@ -29,8 +28,14 @@ export default function FiltersScreen() {
       if (filters.make && v.make !== filters.make) return false;
       if (filters.year && String(v.year) !== filters.year) return false;
       if (filters.transmission && v.transmission !== filters.transmission) return false;
-      if (filters.seats && filters.seats !== "7+" && String(v.seats) !== filters.seats) return false;
+      if (filters.seats === "7+") {
+        if (v.seats < 7) return false;
+      } else if (filters.seats && String(v.seats) !== filters.seats) {
+        return false;
+      }
       if (filters.allStarHostsOnly && !v.verifiedCompany) return false;
+      if (filters.unlimitedDistance && !v.unlimitedDistance) return false;
+      if (filters.wheelchairAccessible && !v.wheelchairAccessible) return false;
       return true;
     }).length;
   }, [filters]);

@@ -4,28 +4,33 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 export type UploadState = "empty" | "uploading" | "uploaded";
 
-export function ImageUploadCard({
-  label,
-  uri,
-  state,
-  onPress,
-  onRemove,
-}: {
-  label: string;
-  uri?: string;
-  state: UploadState;
-  onPress: () => void;
-  onRemove?: () => void;
-}) {
+type ImageUploadCardProps =
+  | {
+      label: string;
+      state: "uploaded";
+      uri: string;
+      onPress: () => void;
+      onRemove?: () => void;
+    }
+  | {
+      label: string;
+      state: Exclude<UploadState, "uploaded">;
+      uri?: undefined;
+      onPress: () => void;
+      onRemove?: () => void;
+    };
+
+export function ImageUploadCard(props: ImageUploadCardProps) {
+  const { label, onPress, onRemove } = props;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       className="aspect-square flex-1 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/15 bg-surface-high"
     >
-      {state === "uploaded" && uri ? (
+      {props.state === "uploaded" ? (
         <>
-          <Image source={{ uri }} contentFit="cover" className="h-full w-full" />
+          <Image source={{ uri: props.uri }} contentFit="cover" className="h-full w-full" />
           <View className="absolute bottom-1.5 left-1.5 right-1.5 flex-row items-center justify-between rounded-md bg-black/60 px-1.5 py-1">
             <Text className="text-caption-sm text-ink">{label}</Text>
             {onRemove ? (
@@ -35,7 +40,7 @@ export function ImageUploadCard({
             ) : null}
           </View>
         </>
-      ) : state === "uploading" ? (
+      ) : props.state === "uploading" ? (
         <>
           <ActivityIndicator color="#1AE0A8" />
           <Text className="mt-2 text-caption-sm text-ink-sub">{label}</Text>

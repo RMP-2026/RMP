@@ -54,3 +54,7 @@ export function useHostOnboarding() {
   if (!ctx) throw new Error("useHostOnboarding must be used within a HostOnboardingProvider");
   return ctx;
 }
+
+export function isValidDailyPrice(price: string): boolean {
+  return Number(price) > 0;
+}

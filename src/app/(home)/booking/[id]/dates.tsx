@@ -4,11 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../../../components/ui/Button";
 import { DateTimeField } from "../../../../components/ui/DateTimeField";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
-import { getVehicleById } from "../../../../lib/mock-data";
+import { DATE_OPTIONS, getDaysBetween, getVehicleById } from "../../../../lib/mock-data";
 import { Routes } from "../../../../lib/routes";
 import { useSearch } from "../../../../lib/search-context";
-
-const DATE_OPTIONS = ["Aug 9, 10 AM", "Aug 10, 10 AM", "Aug 11, 10 AM", "Aug 12, 10 AM", "Aug 13, 10 AM"];
 
 export default function BookingDatesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,11 +15,10 @@ export default function BookingDatesScreen() {
 
   if (!vehicle) return null;
 
-  const days = 3;
+  const days = getDaysBetween(fromLabel, untilLabel);
   const subtotal = vehicle.pricePerDay * days;
-  const weeklyDiscount = 0;
   const multiDayDiscount = Math.round(subtotal * 0.06);
-  const total = subtotal - weeklyDiscount - multiDayDiscount;
+  const total = subtotal - multiDayDiscount;
 
   return (
     <View className="flex-1 bg-background">
@@ -42,7 +39,7 @@ export default function BookingDatesScreen() {
             <View className="rounded-2xl border border-white/10 bg-surface p-4">
               <Text className="mb-3 text-body-md font-bold text-ink">Trip savings</Text>
               <View className="flex-row justify-between py-1">
-                <Text className="text-body-base text-ink-sub">3-day discount</Text>
+                <Text className="text-body-base text-ink-sub">{days}-day discount</Text>
                 <Text className="text-body-base text-success">-${multiDayDiscount}</Text>
               </View>
             </View>

@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Href, router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheet } from "../../../../components/ui/BottomSheet";
 import { PrimaryButton } from "../../../../components/ui/Button";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { useBooking } from "../../../../lib/booking-context";
-import { getVehicleById, PROTECTION_PLANS } from "../../../../lib/mock-data";
+import { getDaysBetween, getVehicleById, PROTECTION_PLANS } from "../../../../lib/mock-data";
 import { Routes } from "../../../../lib/routes";
 import { useSearch } from "../../../../lib/search-context";
 
@@ -17,14 +17,21 @@ export default function CheckoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const vehicle = getVehicleById(id);
   const { fromLabel, untilLabel } = useSearch();
-  const { protectionPlan } = useBooking();
+  const { protectionPlan, reset: resetBooking } = useBooking();
   const [card, setCard] = useState(MOCK_CARDS[0]);
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
   const [booking, setBooking] = useState(false);
+  const bookingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (bookingTimer.current) clearTimeout(bookingTimer.current);
+    };
+  }, []);
 
   if (!vehicle) return null;
 
-  const days = 3;
+  const days = getDaysBetween(fromLabel, untilLabel);
   const subtotal = vehicle.pricePerDay * days;
   const plan = PROTECTION_PLANS.find((p) => p.id === protectionPlan)!;
   const protectionCost = plan.pricePerDay * days;
@@ -34,8 +41,9 @@ export default function CheckoutScreen() {
   const handleBookNow = () => {
     if (booking) return;
     setBooking(true);
-    setTimeout(() => {
+    bookingTimer.current = setTimeout(() => {
       setBooking(false);
+      resetBooking();
       router.replace(Routes.bookingConfirmation(vehicle.id) as Href);
     }, 1200);
   };
@@ -54,7 +62,7 @@ export default function CheckoutScreen() {
           </View>
 
           <View className="gap-2 rounded-2xl border border-white/10 bg-surface p-4">
-            <Row label={`${vehicle.pricePerDay}/day × ${days} days`} value={`$${subtotal}`} />
+            <Row label={`$${vehicle.pricePerDay}/day × ${days} days`} value={`$${subtotal}`} />
             <Row label={`Protection · ${plan.name}`} value={protectionCost === 0 ? "$0" : `$${protectionCost}`} />
             <Row label="Taxes & fees" value={`$${taxesAndFees}`} />
             <View className="mt-1 flex-row items-center justify-between border-t border-white/10 pt-3">
