@@ -1,5 +1,10 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { Href, Redirect, Stack } from "expo-router";
+import { BookingProvider } from "../../lib/booking-context";
+import { FavoritesProvider } from "../../lib/favorites-context";
+import { HostOnboardingProvider } from "../../lib/host-onboarding-context";
+import { roleFromMetadata } from "../../lib/roles";
+import { SearchProvider } from "../../lib/search-context";
 
 export default function HomeLayout() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -8,7 +13,17 @@ export default function HomeLayout() {
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href="/sign-in" />;
   if (!user) return null;
-  if (user.publicMetadata.role === "admin") return <Redirect href={"/admin" as Href} />;
+  if (roleFromMetadata(user.publicMetadata.role) === "admin") return <Redirect href={"/admin" as Href} />;
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <FavoritesProvider>
+      <SearchProvider>
+        <BookingProvider>
+          <HostOnboardingProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </HostOnboardingProvider>
+        </BookingProvider>
+      </SearchProvider>
+    </FavoritesProvider>
+  );
 }

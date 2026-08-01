@@ -17,9 +17,9 @@ function primaryEmailFor(data: UserJSON) {
   return primaryEmail.email_address;
 }
 
-function roleFor(data: UserJSON): "customer" | "host" | "admin" {
+function roleFor(data: UserJSON): "user" | "host" | "admin" {
   const role = data.public_metadata?.role;
-  return role === "admin" || role === "host" ? role : "customer";
+  return role === "admin" || role === "host" ? role : "user";
 }
 
 function upsertUser(data: UserJSON, clerkUpdatedAt: Date) {

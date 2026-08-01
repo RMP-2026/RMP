@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-router/assets/native-tabs.module.css b/node_modules/expo-router/assets/native-tabs.module.css
+index f29cec5..d3307d3 100644
+--- a/node_modules/expo-router/assets/native-tabs.module.css
++++ b/node_modules/expo-router/assets/native-tabs.module.css
+@@ -22,7 +22,7 @@
+ }
+ 
+ .navigationMenuRoot {
+-  top: 24px;
++  bottom: 24px;
+   left: 50%;
+   transform: translateX(-50%);
+   position: fixed;

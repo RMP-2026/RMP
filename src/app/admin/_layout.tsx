@@ -1,6 +1,7 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { roleFromMetadata } from "../../lib/roles";
 
 export default function AdminLayout() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -9,7 +10,7 @@ export default function AdminLayout() {
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href="/sign-in" />;
   if (!user) return null;
-  if (user.publicMetadata.role !== "admin") return <Redirect href="/" />;
+  if (roleFromMetadata(user.publicMetadata.role) !== "admin") return <Redirect href="/" />;
 
   return (
     <NativeTabs backgroundColor="#0E1420" iconColor={{ default: "#7A8599", selected: "#1AE0A8" }}>
