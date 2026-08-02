@@ -1,6 +1,5 @@
 import { createClerkClient } from "@clerk/backend";
 
-import { resolvePermissionContext } from "@/lib/permissions/middleware";
 import { FEATURE_KEYS, SUBSCRIPTION_PLANS, toClerkFeatureCheck, toClerkPlanCheck } from "@/lib/subscription-features";
 
 const secretKey = process.env.CLERK_SECRET_KEY;
@@ -16,15 +15,16 @@ if (!publishableKey) {
 const clerkClient = createClerkClient({ secretKey, publishableKey });
 
 /**
- * Returns the caller's role-based permissions (Postgres) and Clerk Billing plan/features
- * (Host subscriptions). Backs the RN `usePermissions()`/`useHasFeature()` hooks — computed
- * server-side here as the source of truth those hooks fall back to if the installed
- * `@clerk/expo` client can't expose `has()` directly.
+ * Returns the caller's Clerk Billing plan/features (Host subscriptions). Backs the RN
+ * `usePermissions()`/`useHasFeature()` hooks — computed server-side here as the source of
+ * truth those hooks fall back to if the installed `@clerk/expo` client can't expose
+ * `has()` directly.
+ *
+ * Previously also returned Postgres-backed role/permissions; that RBAC system (and its
+ * `permissions`/`roles`/`role_permissions` tables) was dropped in the Phase 1 monorepo
+ * migration (see PLAN.md) and removed here rather than left throwing on a missing table.
  */
 export async function GET(request: Request) {
-  const permissionCtx = await resolvePermissionContext(request);
-  if ("error" in permissionCtx) return permissionCtx.error;
-
   const requestState = await clerkClient.authenticateRequest(request, { acceptsToken: "session_token" });
   const auth = requestState.toAuth();
   if (!auth?.userId) {
@@ -35,8 +35,6 @@ export async function GET(request: Request) {
   const plan = SUBSCRIPTION_PLANS.find((p) => auth.has({ plan: toClerkPlanCheck(p.key) }))?.key ?? null;
 
   return Response.json({
-    role: permissionCtx.role,
-    permissions: permissionCtx.permissions,
     subscriptionPlan: plan,
     features,
   });

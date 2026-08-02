@@ -3,7 +3,6 @@ import { and, eq, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { users, waitlistEntries } from "@/db/schema";
-import { logAudit } from "@/lib/permissions/audit";
 
 import { inngest } from "./client";
 
@@ -123,62 +122,8 @@ export const syncWaitlistEntryUpdated = inngest.createFunction(
   },
 );
 
-// --- Host subscription lifecycle -> audit_log ---
-// Clerk Billing is the source of truth for subscription state (no mirrored Postgres
-// table); this just gives admins a local trail of what happened and when.
-
-type BillingSubscriptionEventData = { id: string; payer?: { user_id?: string }; status?: string };
-type BillingSubscriptionItemEventData = { id: string; status?: string; plan?: { slug?: string } };
-
-function logBillingEvent(action: string, data: BillingSubscriptionEventData | BillingSubscriptionItemEventData) {
-  const actorUserId = "payer" in data ? (data.payer?.user_id ?? null) : null;
-  return logAudit({
-    actorUserId,
-    action,
-    targetType: "subscription",
-    targetId: data.id,
-    metadata: { status: data.status, planSlug: "plan" in data ? data.plan?.slug : undefined },
-  });
-}
-
-export const auditSubscriptionCreated = inngest.createFunction(
-  { id: "audit-subscription-created", triggers: [{ event: "clerk/subscription.created" }] },
-  async ({ event }) => {
-    await logBillingEvent("subscription.created", event.data as BillingSubscriptionEventData);
-  },
-);
-
-export const auditSubscriptionUpdated = inngest.createFunction(
-  { id: "audit-subscription-updated", triggers: [{ event: "clerk/subscription.updated" }] },
-  async ({ event }) => {
-    await logBillingEvent("subscription.updated", event.data as BillingSubscriptionEventData);
-  },
-);
-
-export const auditSubscriptionItemActive = inngest.createFunction(
-  { id: "audit-subscription-item-active", triggers: [{ event: "clerk/subscriptionItem.active" }] },
-  async ({ event }) => {
-    await logBillingEvent("subscriptionItem.active", event.data as BillingSubscriptionItemEventData);
-  },
-);
-
-export const auditSubscriptionItemCanceled = inngest.createFunction(
-  { id: "audit-subscription-item-canceled", triggers: [{ event: "clerk/subscriptionItem.canceled" }] },
-  async ({ event }) => {
-    await logBillingEvent("subscriptionItem.canceled", event.data as BillingSubscriptionItemEventData);
-  },
-);
-
-export const auditSubscriptionItemPastDue = inngest.createFunction(
-  { id: "audit-subscription-item-past-due", triggers: [{ event: "clerk/subscriptionItem.pastDue" }] },
-  async ({ event }) => {
-    await logBillingEvent("subscriptionItem.pastDue", event.data as BillingSubscriptionItemEventData);
-  },
-);
-
-export const auditSubscriptionItemExpired = inngest.createFunction(
-  { id: "audit-subscription-item-expired", triggers: [{ event: "clerk/subscriptionItem.expired" }] },
-  async ({ event }) => {
-    await logBillingEvent("subscriptionItem.expired", event.data as BillingSubscriptionItemEventData);
-  },
-);
+// The host subscription lifecycle -> audit_log functions that used to live here were
+// removed: `audit_log` was dropped from Postgres in the Phase 1 monorepo migration (see
+// PLAN.md), and this whole webhook/inngest copy is superseded by apps/web + packages/jobs
+// anyway, which never reimplemented this audit trail — Clerk Billing is the source of
+// truth for subscription state.

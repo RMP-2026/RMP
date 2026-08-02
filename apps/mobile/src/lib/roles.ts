@@ -1,6 +1,11 @@
 import { useAuth, useUser } from "@clerk/expo";
 
-import { ROLE_KEYS, type RoleKey } from "@/lib/permissions/catalog";
+// The pre-Phase-1 role model had 5 platform roles; the current `packages/db` `users.role`
+// enum only has `customer`/`admin` (company-level access is `company_staff` membership,
+// not a platform role — see PLAN.md Phase 1). Kept as the wider set here since Clerk
+// `publicMetadata.role` isn't validated against the DB enum and this is just a typo guard.
+export type RoleKey = "customer" | "host" | "admin" | "support" | "moderator";
+export const ROLE_KEYS: readonly RoleKey[] = ["customer", "host", "admin", "support", "moderator"];
 
 export type AppRole = RoleKey;
 

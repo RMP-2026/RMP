@@ -19,6 +19,7 @@ export const Routes = {
   companyFleet: (id: string) => `/company/${id}/fleet`,
   companyShare: (id: string) => `/company/${id}/share`,
   becomeHost: "/become-host",
+  becomeHostApply: "/become-host/apply",
   becomeHostVehicle: "/become-host/vehicle-details",
   becomeHostPhotos: "/become-host/photos",
   becomeHostLocation: "/become-host/location",

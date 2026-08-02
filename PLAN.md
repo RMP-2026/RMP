@@ -125,56 +125,72 @@ silently deleted — say the word and I'll remove them (they're in the backup ei
 
 ## Phase 2 — Company onboarding + admin approval
 
-- [ ] Build "Join as Host" application flow (mobile form)
-- [ ] Add required cancellation-window selection (24h or 48h, one must be chosen) to
-      the application, stored as `companies.cancellationWindowHours`
-- [ ] Add ImageKit doc upload for business license / EIN / insurance
-- [ ] Add rental-agreement contract PDF upload to the application (same `documents` +
-      ImageKit flow, new document type) — each company brings its own contract, not a
-      shared master template. Each upload creates a new immutable, versioned
-      `documents` row (never overwrites/mutates a prior version) so a past version
-      remains permanently retrievable by ID
-- [ ] Build admin pending-applications queue (`apps/web`)
-- [ ] Admin approval must explicitly include reviewing the uploaded rental-agreement
-      PDF, not just KYC/business documents — it's the renter's real legal exposure.
-      Approval is recorded against that specific document version (not "the
-      company's contract" generically); a company replacing its PDF later creates a
-      new unapproved version that must clear admin review before it can be used as a
-      DocuSign envelope source for any new booking
-- [ ] Add `admin_audit_log` writes on every admin approve/reject action
-- [ ] Set up Stripe Connect (Express) onboarding, hosted flow
-- [ ] Add Stripe `account.updated` webhook handler
-- [ ] Set up Stripe Billing subscription via Stripe Checkout with `trial_period_days`
-      (1-month trial)
-- [ ] Wire Inngest: trial-end job
-- [ ] Wire Inngest: grace-period job (`invoice.payment_failed` → 3-day
-      `step.sleepUntil` → `paused`, with cancel-on-event for `invoice.payment_succeeded`)
-- [ ] Define `paused` semantics precisely: vehicles hidden from search/public pages,
-      new booking requests rejected, new staff invites blocked — but any booking
-      already active/approved before the pause continues its normal lifecycle
-      uninterrupted (handoff, return, messaging, overage billing all still work).
-      Bookings sitting in `pending` at the moment the company pauses are
-      auto-declined by the same pause job (company staff can no longer act on new
-      business while paused, so a stale pending request can't be left in limbo).
-      This races other writers of `bookings.status` (customer cancellation, a
-      concurrent company decline), so the job must first atomically
-      compare-and-set the booking `pending -> declined`
-      (`UPDATE bookings SET status = 'declined' WHERE id = $1 AND status =
-      'pending'`, checking rows-affected) before touching payment state. Only if
-      that CAS succeeds does the job proceed: void the PaymentIntent authorization
-      (never captured, so this is a void, not a refund) and notify the customer —
-      the `declined` status is already outside the
-      `pending`/`approved`/`active`/`blocked` blocking-status set, so the exclusion
-      constraint releases the held dates as soon as the CAS commits. If the CAS
-      affects zero rows (booking was no longer `pending`), the job no-ops on that
-      booking and leaves its payment state untouched — whichever other flow won
-      the race already owns the void/refund/capture decision. This only affects
-      `pending`; `approved`/`active` bookings are unaffected per above
-- [ ] Build staff invite flow with seat-limit enforcement (1 / 5 / unlimited by tier)
-- [ ] Apply rate limiting to document-submission endpoints (Persona/DocuSign calls cost
-      money per use)
-- [ ] **Done-gate**: apply → admin-approve → Connect+Billing onboarding → staff invite
-      within tier limits, all reflected live to admin
+- [x] Build "Join as Host" application flow (mobile form) —
+      `apps/mobile/src/app/(home)/become-host/apply.tsx`; `become-host/index.tsx` now
+      checks `company.mine` first and only shows "Get started" (→ apply) when the user
+      has no company yet, shows a pending/rejected state otherwise, and skips straight
+      to the existing vehicle-listing flow once approved
+- [x] Add required cancellation-window selection (24h or 48h) to the application,
+      stored as `companies.cancellationWindowHours`
+- [x] Add ImageKit doc upload for business license / EIN / insurance —
+      `packages/api`'s `upload.getAuthParams` (signed direct-to-ImageKit upload) +
+      `apps/mobile/src/lib/imagekit-upload.ts`; replaces the old mocked-upload TODO in
+      the pre-existing `become-host/photos.tsx`, though that screen itself is unchanged
+      this phase
+- [x] Add rental-agreement contract PDF upload (same flow, `expo-document-picker` for
+      the PDF vs. `expo-image-picker` for photos) — `company.submitApplication` requires
+      all four document types before creating the company row; each is a fresh,
+      immutable `documents` row
+- [x] Build admin pending-applications queue (`apps/web`) —
+      `(dashboard)/admin/page.tsx`, per-document approve/reject plus a company-level
+      approve/reject; company approval is blocked until every document is individually
+      approved
+- [x] Admin approval requires the rental-agreement PDF (and every other document)
+      individually reviewed first — `admin.approveCompany` throws
+      `PRECONDITION_FAILED` listing what's still pending; `admin.reviewDocument` records
+      the decision against that exact `documents.id`, never "the company's contract" generically
+- [x] Add `admin_audit_log` writes on every admin approve/reject action (`document.approved`/
+      `document.rejected`/`company.approved`/`company.rejected`, all with `actorUserId`)
+- [x] Set up Stripe Connect (Express) onboarding, hosted flow —
+      `billing.connectOnboarding` (Account + Account Link)
+- [x] Add Stripe `account.updated` webhook handler — `apps/web/api/webhooks/stripe` ->
+      Inngest -> `packages/jobs`'s `syncStripeAccountUpdated`
+- [x] Set up Stripe Billing subscription via Stripe Checkout with `trial_period_days: 30`
+      — `billing.checkout`; needs `STRIPE_PRICE_{STARTER,PROFESSIONAL,PREMIUM}` price
+      IDs once a real Stripe account exists
+- [x] Wire Inngest: trial-end job (`stripeTrialWillEnd`) — keeps `subscriptions.trial_ends_at`
+      current; actual notification send is Phase 5 (Resend/Twilio not wired to this yet)
+- [x] Wire Inngest: grace-period job (`stripeGracePeriod`) — `step.sleep("3d")` after
+      `invoice.payment_failed`, `cancelOn` matching `invoice.payment_succeeded` by
+      Stripe customer id (Inngest's built-in cancellation, equivalent to a race against
+      `step.waitForEvent`)
+- [x] `paused` semantics: company + subscription flip to `paused`/`past_due`, and any
+      `pending` booking for that company is auto-declined (a scoped `UPDATE ... WHERE
+      status = 'pending'`, so it can't touch a booking another writer already moved).
+      **Partial**: PaymentIntent voiding and customer notification aren't wired — there's
+      no real booking/payment-creation flow yet to attach them to (Phase 4). Vehicles
+      hidden from search and new-booking-rejection are enforced by Phase 3's search
+      query and Phase 4's booking creation respectively, once those exist and check
+      `company.status`. New-staff-invite-blocking is enforced now (`staff.invite` throws
+      if the company is paused)
+- [x] Build staff invite flow with seat-limit enforcement (1 Starter / 5 Professional /
+      unlimited Premium) — `staff.invite`; invites an existing RMP user by email (no
+      email-invitation-of-new-users yet, that's Resend/Phase 5 territory)
+- [x] Apply rate limiting to document-submission endpoints — inherited for free:
+      `company.submitApplication` and `upload.getAuthParams` build on `protectedProcedure`,
+      which already rate-limits first (Phase 1)
+- [x] **Done-gate** (partial — see step-by-step test below): `pnpm turbo run build lint
+      typecheck` all green (a real bug surfaced and got fixed here: tRPC rejects `apply`
+      as a procedure name — collides with `Function.prototype.apply` — renamed to
+      `company.submitApplication`). The actual apply → approve → Connect/Billing →
+      invite flow needs Stripe + ImageKit credentials to run end-to-end — yours to
+      verify once those exist; see step-by-step below for what's testable now.
+
+**Needs you**: Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SIGNING_SECRET`,
+`STRIPE_PRICE_*`) and ImageKit (`IMAGEKIT_*`) credentials — no account access available
+for either. Note: a "claude.ai Stripe" MCP connector is available but needs your
+authorization (claude.ai connector settings) before I could use it instead of the
+hand-written `stripe` SDK calls here.
 
 ## Phase 3 — Vehicle listing + search
 

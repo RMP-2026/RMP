@@ -1,4 +1,4 @@
-import { boolean, doublePrecision, integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { users } from "./users";
 
@@ -39,16 +39,20 @@ export const companies = pgTable("companies", {
 
 export const companyStaffRoleEnum = pgEnum("company_staff_role", ["owner", "staff"]);
 
-export const companyStaff = pgTable("company_staff", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companies.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  role: companyStaffRoleEnum("role").notNull().default("staff"),
-  invitedAt: timestamp("invited_at").notNull().defaultNow(),
-  joinedAt: timestamp("joined_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const companyStaff = pgTable(
+  "company_staff",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: companyStaffRoleEnum("role").notNull().default("staff"),
+    invitedAt: timestamp("invited_at").notNull().defaultNow(),
+    joinedAt: timestamp("joined_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("company_staff_company_user_idx").on(table.companyId, table.userId)],
+);

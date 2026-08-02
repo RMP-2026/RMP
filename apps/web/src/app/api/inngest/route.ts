@@ -1,5 +1,9 @@
 import {
   inngest,
+  stripeGracePeriod,
+  stripeTrialWillEnd,
+  syncStripeAccountUpdated,
+  syncStripeSubscriptionUpdated,
   syncUserCreated,
   syncUserDeleted,
   syncUserUpdated,
@@ -10,5 +14,15 @@ import { serve } from "inngest/next";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [syncUserCreated, syncUserUpdated, syncUserDeleted, syncWaitlistEntryCreated, syncWaitlistEntryUpdated],
+  functions: [
+    syncUserCreated,
+    syncUserUpdated,
+    syncUserDeleted,
+    syncWaitlistEntryCreated,
+    syncWaitlistEntryUpdated,
+    syncStripeAccountUpdated,
+    syncStripeSubscriptionUpdated,
+    stripeTrialWillEnd,
+    stripeGracePeriod,
+  ],
 });
