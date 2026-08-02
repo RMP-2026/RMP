@@ -2,6 +2,7 @@ import { useAuth } from "@clerk/expo";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { mobileApiOrigin } from "@/lib/api-origin";
 import type { FeatureKey, SubscriptionPlanKey } from "@/lib/subscription-features";
 
 type PermissionsState = {
@@ -42,8 +43,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
       setState((prev) => ({ ...prev, isLoading: true }));
 
-      const apiOrigin = process.env.EXPO_PUBLIC_API_URL ?? "";
-      const response = await fetch(`${apiOrigin}/api/me/permissions`, {
+      const response = await fetch(`${mobileApiOrigin()}/api/me/permissions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error(`Failed to load permissions (${response.status})`);

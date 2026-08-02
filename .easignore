@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# Claude Code tooling (contains symlinks that break EAS archiving on Windows)
+.agents/
+.claude/
+
+# generated native folders
+apps/mobile/ios/
+apps/mobile/android/
+
+# misc
+.git/
+.turbo/
+.expo/
+dist/
+web-build/

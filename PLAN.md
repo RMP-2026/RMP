@@ -117,12 +117,6 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
       `trpc.me.get()` succeeding are yours to verify — I can't drive a browser/device or
       start dev servers. Rate-limit rejection can't be tested until Upstash is configured.
 
-**Known breakage, not fixed here — your call**: the pre-PLAN.md RBAC admin screens in
-`apps/mobile` (`/admin/roles`, `/admin/subscriptions`, `/admin/audit-log` and their
-`api/admin/*` routes) query the tables just dropped (`permissions`/`roles`/
-`role_permissions`/`audit_log`) and will now error if visited. Left as-is rather than
-silently deleted — say the word and I'll remove them (they're in the backup either way).
-
 ## Phase 2 — Company onboarding + admin approval
 
 - [x] Build "Join as Host" application flow (mobile form) —
@@ -153,7 +147,7 @@ silently deleted — say the word and I'll remove them (they're in the backup ei
       `document.rejected`/`company.approved`/`company.rejected`, all with `actorUserId`)
 - [x] Set up Stripe Connect (Express) onboarding, hosted flow —
       `billing.connectOnboarding` (Account + Account Link)
-- [x] Add Stripe `account.updated` webhook handler — `apps/web/api/webhooks/stripe` ->
+- [x] Add Stripe `account.updated` webhook handler — `apps/web/src/app/api/webhooks/stripe` ->
       Inngest -> `packages/jobs`'s `syncStripeAccountUpdated`
 - [x] Set up Stripe Billing subscription via Stripe Checkout with `trial_period_days: 30`
       — `billing.checkout`; needs `STRIPE_PRICE_{STARTER,PROFESSIONAL,PREMIUM}` price

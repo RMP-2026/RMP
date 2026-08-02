@@ -1,5 +1,7 @@
 import { useAuth, useUser } from "@clerk/expo";
 
+import { mobileApiOrigin } from "@/lib/api-origin";
+
 // The pre-Phase-1 role model had 5 platform roles; the current `packages/db` `users.role`
 // enum only has `customer`/`admin` (company-level access is `company_staff` membership,
 // not a platform role — see PLAN.md Phase 1). Kept as the wider set here since Clerk
@@ -31,13 +33,12 @@ export function useApplyForHost() {
     const token = await getToken();
     if (!token) throw new Error("You must be signed in to become a host.");
 
-    const apiOrigin = process.env.EXPO_PUBLIC_API_URL ?? "";
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
 
     let response: Response;
     try {
-      response = await fetch(`${apiOrigin}/api/host/apply`, {
+      response = await fetch(`${mobileApiOrigin()}/api/host/apply`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
