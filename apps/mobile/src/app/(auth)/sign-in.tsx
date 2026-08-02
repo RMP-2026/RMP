@@ -25,7 +25,7 @@ cssInterop(Image, { className: "style" });
 type Step = "credentials" | "verify" | "reset" | "newPassword" | "clientTrust";
 
 const buildNavigate =
-  (path: Href, onBlocked?: () => void) =>
+  (path: string, onBlocked?: () => void) =>
   ({
     session,
     decorateUrl,
@@ -66,8 +66,8 @@ export default function SignInScreen() {
   const onSessionBlocked = () =>
     setFormError("Your account needs additional setup that this app doesn't support yet. Please contact support.");
   // Existing users land straight on home; brand-new accounts see terms-privacy once, first.
-  const navigateToHome = buildNavigate("/" as Href, onSessionBlocked);
-  const navigateToTerms = buildNavigate("/terms-privacy" as Href, onSessionBlocked);
+  const navigateToHome = buildNavigate("/", onSessionBlocked);
+  const navigateToTerms = buildNavigate("/terms-privacy", onSessionBlocked);
 
   const handleSSO = async (strategy: "oauth_apple" | "oauth_google") => {
     setFormError(null);
@@ -403,7 +403,7 @@ export default function SignInScreen() {
                   disabled={isBusy}
                   onPress={() =>
                     router.push({
-                      pathname: "/forgot-password" as Href,
+                      pathname: "/forgot-password",
                       params: emailAddress ? { email: emailAddress } : undefined,
                     })
                   }
@@ -473,7 +473,7 @@ export default function SignInScreen() {
 
                 <Pressable
                   className="mt-8 flex-row justify-center transition-transform active:scale-95 active:opacity-60"
-                  onPress={() => router.push("/sign-up" as Href)}
+                  onPress={() => router.push("/sign-up")}
                 >
                   <Text className="text-sm text-ink-sub">New to RMP? </Text>
                   <Text className="text-sm font-semibold text-teal">Create Account</Text>

@@ -3,7 +3,7 @@ import { useSignIn } from "@clerk/expo";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import { Href, router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { cssInterop } from "nativewind";
 import { useState } from "react";
 import {
@@ -43,7 +43,7 @@ export default function ForgotPasswordScreen() {
           if (createError.code === "form_identifier_not_found") {
             // Don't reveal whether the email is registered — behave like a successful request.
             router.push({
-              pathname: "/sign-in" as Href,
+              pathname: "/sign-in",
               params: { step: "reset", email: emailAddress },
             });
             return;
@@ -60,7 +60,7 @@ export default function ForgotPasswordScreen() {
       }
 
       router.push({
-        pathname: "/sign-in" as Href,
+        pathname: "/sign-in",
         params: { step: "reset", email: emailAddress },
       });
     } finally {
