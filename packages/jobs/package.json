@@ -8,11 +8,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/backend": "^3.13.1",
+    "@neondatabase/serverless": "^1.1.0",
     "@rmp/db": "workspace:*",
     "@rmp/shared": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "inngest": "^4.13.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "~6.0.3"
   }
 }

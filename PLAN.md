@@ -66,36 +66,62 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
 
 ## Phase 1 — Auth + data layer
 
-- [ ] Write full Drizzle schema (`users`, `companies`, `company_staff`, `vehicles`,
+- [x] Write full Drizzle schema (`users`, `companies`, `company_staff`, `vehicles`,
       `bookings`, `booking_reservations`, `documents`, `messages`, `subscriptions`,
       `payouts`, `notifications`, `admin_audit_log`, `inspections`,
       `booking_extensions`, `favorites`, `promo_codes`, `promo_redemptions`,
       `deposit_holds`, `damage_claims`, `reviews`, `support_tickets`,
-      `support_ticket_messages`, `chargebacks`) in `packages/db/src/schema/`
-- [ ] Enable Postgres extensions: `btree_gist`, `cube`, `earthdistance`, `pg_trgm`
-- [ ] Add the `bookings_no_overlap` `EXCLUDE USING gist` double-booking constraint,
-      scoped via `WHERE (status IN (<blocking statuses>))` to `pending`/`approved`/
-      `active`/`blocked`, using half-open `daterange(start_date, end_date, '[)')`
-      overlap; define this blocking-status set as one shared constant
-      (`packages/shared`) so the Phase 3 search-availability query stays consistent
-      with it instead of re-deriving its own list
-- [ ] Run initial Drizzle migration against Neon
-- [ ] Wire Clerk into `apps/mobile` (Google + Apple OAuth only, `@clerk/clerk-expo`)
-- [ ] Wire Clerk into `apps/web` (`@clerk/nextjs`), add `middleware.ts` role gate
-- [ ] Add Clerk webhook (`user.created`/`updated`/`deleted`) syncing into `users`
-- [ ] Add phone number collection + verification (Twilio Verify, decoupled from Clerk
-      sign-in) as a post-signup step, stored on `users`, gating SMS notification opt-in
-- [ ] Stand up `packages/api` with `trpc.ts` (context + `public`/`protected`/`company`/
+      `support_ticket_messages`, `chargebacks`) in `packages/db/src/schema/`.
+      `users.role` is `customer`/`admin` only — company-level access is
+      `company_staff` membership (`owner`/`staff`), not a platform role
+- [x] Enable Postgres extensions: `btree_gist`, `cube`, `earthdistance`, `pg_trgm`
+      (plus `pgcrypto` for the uuid PK columns) — `packages/db/src/extensions-and-constraints.sql`
+- [x] Add the `bookings_no_overlap` `EXCLUDE USING gist` double-booking constraint,
+      scoped to `pending`/`approved`/`active`/`blocked` via half-open
+      `daterange(start_date, end_date, '[)')` overlap; the blocking-status set lives
+      once in `packages/shared/src/booking-status.ts`
+      (`BLOCKING_BOOKING_STATUSES`) for Phase 3's search query to reuse
+- [x] Run initial Drizzle migration against Neon — required first dropping the
+      pre-PLAN.md RBAC tables (`permissions`/`roles`/`role_permissions`/`audit_log`)
+      and reshaping `users` (name -> first_name/last_name, role enum 5 values -> 2),
+      confirmed with you before running since it was destructive; both are backed up
+      (commit `d87c939`, folder backup)
+- [x] Wire Clerk into `apps/mobile` (Google + Apple OAuth) — already done pre-rewrite
+      via `useSSO()`; verified both providers enabled on the Clerk instance and the
+      `rmp` deep-link scheme is configured
+- [x] Wire Clerk into `apps/web` (`@clerk/nextjs`), add `proxy.ts` role gate (Next.js
+      16 renamed `middleware.ts` -> `proxy.ts`) — added a `metadata` session claim
+      (Clerk Dashboard) so `sessionClaims.metadata.role` is readable without a DB
+      round-trip; admin routes 404 for non-admins, company-tier auth is a DB check
+      inside packages/api's `companyProcedure`, not middleware
+- [x] Add Clerk webhook (`user.created`/`updated`/`deleted`) syncing into `users` —
+      `apps/web/src/app/api/webhooks/clerk` -> Inngest -> `packages/jobs`. The old
+      `apps/mobile` copy of this is now redundant (see note below)
+- [x] Add phone number collection + verification (Twilio Verify, decoupled from Clerk
+      sign-in) — `packages/api`'s `phone.sendCode`/`phone.verifyCode`; throws a clear
+      `PRECONDITION_FAILED` until `TWILIO_*` env vars are set (**needs you** — no
+      Twilio account access available)
+- [x] Stand up `packages/api` with `trpc.ts` (context + `public`/`protected`/`company`/
       `admin` procedure builders) and a round-trip `me` router
-- [ ] Add Upstash Ratelimit middleware to the tRPC procedure builders, applied first to
-      auth/signup paths
-- [ ] Mount tRPC route handler in `apps/web` (`/api/trpc/[trpc]`, Node runtime)
-- [ ] Wire tRPC client in `apps/mobile` with Clerk bearer token
-- [ ] Add role-gated route-group skeletons in `apps/web`
+- [x] Add Upstash Ratelimit middleware to the tRPC procedure builders (on
+      `protectedProcedure`, the base every other tier builds on) — fails open with a
+      console warning until `UPSTASH_REDIS_REST_URL`/`_TOKEN` are set (**needs you** —
+      no Upstash account access available)
+- [x] Mount tRPC route handler in `apps/web` (`/api/trpc/[trpc]`, Node runtime)
+- [x] Wire tRPC client in `apps/mobile` with Clerk bearer token — `apps/mobile/src/lib/trpc.ts`;
+      `EXPO_PUBLIC_API_URL` must point at wherever `apps/web` is running
+- [x] Add role-gated route-group skeletons in `apps/web`
       (`(dashboard)/company`, `(dashboard)/admin`)
-- [ ] **Done-gate**: sign in via Google or Apple on both mobile and web, `users` row
-      syncs correctly, authenticated `trpc.me.get()` succeeds from both apps, and a
-      rate-limit-exceeded request is correctly rejected
+- [x] **Done-gate** (partial — see step-by-step test below): `pnpm turbo run build lint
+      typecheck` all green. Signing in on both apps, the `users` row syncing, and
+      `trpc.me.get()` succeeding are yours to verify — I can't drive a browser/device or
+      start dev servers. Rate-limit rejection can't be tested until Upstash is configured.
+
+**Known breakage, not fixed here — your call**: the pre-PLAN.md RBAC admin screens in
+`apps/mobile` (`/admin/roles`, `/admin/subscriptions`, `/admin/audit-log` and their
+`api/admin/*` routes) query the tables just dropped (`permissions`/`roles`/
+`role_permissions`/`audit_log`) and will now error if visited. Left as-is rather than
+silently deleted — say the word and I'll remove them (they're in the backup either way).
 
 ## Phase 2 — Company onboarding + admin approval
 

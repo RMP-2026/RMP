@@ -1,11 +1,25 @@
 {
   "files": [],
   "references": [
-    { "path": "apps/mobile" },
-    { "path": "apps/web" },
-    { "path": "packages/db" },
-    { "path": "packages/shared" },
-    { "path": "packages/api" },
-    { "path": "packages/jobs" }
-  ]
+    {
+      "path": "apps/mobile"
+    },
+    {
+      "path": "apps/web"
+    },
+    {
+      "path": "packages/db"
+    },
+    {
+      "path": "packages/shared"
+    },
+    {
+      "path": "packages/api"
+    },
+    {
+      "path": "packages/jobs"
+    }
+  ],
+  "compilerOptions": {},
+  "extends": "expo/tsconfig.base"
 }
