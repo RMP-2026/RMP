@@ -13,35 +13,56 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
 
 ## Phase 0 — Monorepo scaffold + CI
 
-- [ ] Set repo-local git identity (`user.name = "RMP"`, `user.email =
+- [x] Set repo-local git identity (`user.name = "RMP"`, `user.email =
       "tohotnow@outlook.com"`)
-- [ ] Baseline commit of the current vanilla Expo scaffold
-- [ ] Create `apps/` and `packages/` directories
-- [ ] `git mv` the Expo app (`src`, `app.json`, `expo-env.d.ts`, `assets`, `package.json`,
-      `tsconfig.json`) into `apps/mobile/`
-- [ ] Remove `package-lock.json` (pnpm replaces npm at the root)
-- [ ] Add `pnpm-workspace.yaml` (`apps/*`, `packages/*`)
-- [ ] Add root `package.json` (`private: true`, `packageManager` pin, scripts delegating
+- [x] Baseline commit of the current state before restructuring (commit `d87c939` on
+      `king`; full pre-rewrite copy also archived at
+      `C:\Users\tohot\RMP-backup-pre-monorepo-2026-08-01`)
+- [x] Create `apps/` and `packages/` directories
+- [x] Move the Expo app (`src`, `app.json`, `expo-env.d.ts`, `assets`, `package.json`,
+      `tsconfig.json`, plus `babel.config.js`/`eslint.config.js`/`global.css`/
+      `metro.config.js`/`nativewind-env.d.ts`/`tailwind.config.js`/`patches/`/`eas.json`/
+      `drizzle.config.ts`/`.env.local`/`android/` — not itemized in the original list but
+      clearly belong with the app) into `apps/mobile/`. Note: `git mv` on `src/` itself
+      failed with a Windows file-lock (`Permission denied`) — worked around with a
+      verified copy + delete instead of a rename; git still recorded it as a rename via
+      similarity detection
+- [x] Remove `package-lock.json` (pnpm replaces npm at the root)
+- [x] Add `pnpm-workspace.yaml` (`apps/*`, `packages/*`) — also holds `allowBuilds` for
+      the packages pnpm blocks native/postinstall scripts for by default (`sharp`,
+      `esbuild`, `@sentry/cli`, `unrs-resolver`, etc.) — all approved, all trusted
+      ecosystem packages the toolchain needs
+- [x] Add root `package.json` (`private: true`, `packageManager` pin, scripts delegating
       to `turbo run <task>`)
-- [ ] Add `turbo.json` pipeline (`build`, `dev`, `lint`, `typecheck`, `test`)
-- [ ] Add root `tsconfig.json` project-reference hub + `packages/config/tsconfig-base.json`
-- [ ] Rename `apps/mobile/package.json` name to `@rmp/mobile`
-- [ ] Configure `apps/mobile/metro.config.js` for pnpm/workspace symlink resolution
+- [x] Add `turbo.json` pipeline (`build`, `dev`, `lint`, `typecheck`, `test`)
+- [x] Add root `tsconfig.json` project-reference hub + `packages/config/tsconfig-base.json`
+- [x] Rename `apps/mobile/package.json` name to `@rmp/mobile`
+- [x] Configure `apps/mobile/metro.config.js` for pnpm/workspace symlink resolution
       (`watchFolders`, `nodeModulesPaths`, `unstable_enableSymlinks`,
       `disableHierarchicalLookup`)
-- [ ] Scaffold `apps/web` via `create-next-app` (TypeScript, App Router, Tailwind), rename
-      to `@rmp/web`
-- [ ] Scaffold empty `packages/db`, `packages/shared`, `packages/api`, `packages/jobs`,
-      `packages/config` with minimal stubs
-- [ ] Create Neon project (main branch = prod)
-- [ ] Create Sentry projects for both apps
-- [ ] Create PostHog project, initialize SDK in both apps (`posthog-js` web,
-      `posthog-react-native` mobile) — events wired progressively in later phases
-- [ ] Wire Axiom log drain for `apps/web` / `packages/jobs`
-- [ ] Add `.github/workflows/ci.yml` running `turbo run lint typecheck build`
-- [ ] **Done-gate**: `pnpm install` + `pnpm turbo run build lint typecheck` all green;
-      `expo start` boots the default screen; `next dev` boots the default page; a test
-      Sentry/PostHog event reaches both dashboards
+- [x] Scaffold `apps/web` via `create-next-app` (TypeScript, App Router, Tailwind), rename
+      to `@rmp/web`; pinned `turbopack.root` in `next.config.ts` to stop it from picking
+      up an unrelated lockfile elsewhere on disk
+- [x] Scaffold empty `packages/db`, `packages/shared`, `packages/api`, `packages/jobs`,
+      `packages/config` with minimal stubs (each a real workspace member: `package.json` +
+      `tsconfig.json` extending the shared base + a placeholder `src/index.ts`)
+- [ ] Create Neon project (main branch = prod) — **needs you**: no Neon account/API
+      access available to me; you already have a dev database (`DATABASE_URL`), this item
+      is specifically about a separate prod branch/project
+- [ ] Create Sentry projects for both apps — **needs you**: no Sentry account access;
+      mobile already has a Sentry DSN configured, web needs its own project
+- [ ] Create PostHog project, initialize SDK in both apps — **needs you** for project
+      creation/API key; SDK wiring itself is a later-phase code task once the key exists
+- [ ] Wire Axiom log drain for `apps/web` / `packages/jobs` — **needs you**: no Axiom
+      account access
+- [x] Add `.github/workflows/ci.yml` running `pnpm install --frozen-lockfile` +
+      `turbo run lint typecheck build`
+- [x] **Done-gate** (partial — see step-by-step test below): `pnpm install` +
+      `pnpm turbo run build lint typecheck` all green except two **pre-existing**
+      `apps/mobile` typedRoutes errors in `(auth)/forgot-password.tsx` and
+      `(auth)/sign-in.tsx` (present before this rewrite, unrelated to it — left alone
+      rather than guessed at). `expo start`/`next dev` booting and the Sentry/PostHog test
+      event are yours to verify — I don't start dev servers or have those dashboards.
 
 ## Phase 1 — Auth + data layer
 
