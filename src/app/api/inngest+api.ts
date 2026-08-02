@@ -2,6 +2,12 @@ import { serve } from "inngest/edge";
 
 import { inngest } from "@/inngest/client";
 import {
+  auditSubscriptionCreated,
+  auditSubscriptionItemActive,
+  auditSubscriptionItemCanceled,
+  auditSubscriptionItemExpired,
+  auditSubscriptionItemPastDue,
+  auditSubscriptionUpdated,
   syncUserCreated,
   syncUserDeleted,
   syncUserUpdated,
@@ -17,6 +23,12 @@ const handler = serve({
     syncUserDeleted,
     syncWaitlistEntryCreated,
     syncWaitlistEntryUpdated,
+    auditSubscriptionCreated,
+    auditSubscriptionUpdated,
+    auditSubscriptionItemActive,
+    auditSubscriptionItemCanceled,
+    auditSubscriptionItemPastDue,
+    auditSubscriptionItemExpired,
   ],
 });
 

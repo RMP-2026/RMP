@@ -3,6 +3,8 @@ import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
 import * as Sentry from "@sentry/react-native";
 
+import { PermissionsProvider } from "@/lib/permissions-context";
+
 import "../../global.css";
 
 Sentry.init({
@@ -21,7 +23,9 @@ if (!publishableKey) {
 function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <PermissionsProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </PermissionsProvider>
     </ClerkProvider>
   );
 }

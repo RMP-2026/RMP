@@ -1,9 +1,11 @@
 import { useAuth, useUser } from "@clerk/expo";
 
-export type AppRole = "user" | "host" | "admin";
+import { ROLE_KEYS, type RoleKey } from "@/lib/permissions/catalog";
+
+export type AppRole = RoleKey;
 
 export function roleFromMetadata(role: unknown): AppRole {
-  return role === "admin" || role === "host" ? role : "user";
+  return (ROLE_KEYS as readonly string[]).includes(role as string) ? (role as AppRole) : "customer";
 }
 
 /** Reads the signed-in user's role from Clerk's publicMetadata (source of truth, set server-side only). */

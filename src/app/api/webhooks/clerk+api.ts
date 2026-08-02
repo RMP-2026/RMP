@@ -8,6 +8,13 @@ const FORWARDED_EVENTS = new Set([
   "user.deleted",
   "waitlistEntry.created",
   "waitlistEntry.updated",
+  // Host subscription lifecycle (Clerk Billing) — mirrored into audit_log, see src/inngest/functions.ts.
+  "subscription.created",
+  "subscription.updated",
+  "subscriptionItem.active",
+  "subscriptionItem.canceled",
+  "subscriptionItem.pastDue",
+  "subscriptionItem.expired",
 ]);
 
 export async function POST(request: Request) {

@@ -47,7 +47,7 @@ export default function MoreScreen() {
             <View className="flex-1">
               <View className="flex-row items-center gap-2">
                 <Text className="text-heading-lg font-bold text-ink">{user?.firstName ?? "Guest"}</Text>
-                {role !== "user" ? (
+                {role !== "customer" ? (
                   <StatusBadge label={role === "admin" ? "Admin" : "Host"} tone={role === "admin" ? "pending" : "verified"} />
                 ) : null}
               </View>
@@ -79,7 +79,7 @@ export default function MoreScreen() {
 
           <Text className="mb-2 mt-6 text-label-xs font-semibold tracking-widest text-ink-sub">HOSTING</Text>
           <View>
-            {role === "user" ? (
+            {role === "customer" ? (
               <ProfileMenuRow
                 icon="business-outline"
                 label="Become a host"

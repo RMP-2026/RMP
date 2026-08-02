@@ -3,6 +3,7 @@ import { and, eq, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { users, waitlistEntries } from "@/db/schema";
+import { logAudit } from "@/lib/permissions/audit";
 
 import { inngest } from "./client";
 
@@ -17,9 +18,11 @@ function primaryEmailFor(data: UserJSON) {
   return primaryEmail.email_address;
 }
 
-function roleFor(data: UserJSON): "user" | "host" | "admin" {
+const VALID_ROLES = ["customer", "host", "admin", "support", "moderator"] as const;
+
+function roleFor(data: UserJSON): (typeof VALID_ROLES)[number] {
   const role = data.public_metadata?.role;
-  return role === "admin" || role === "host" ? role : "user";
+  return (VALID_ROLES as readonly string[]).includes(role as string) ? (role as (typeof VALID_ROLES)[number]) : "customer";
 }
 
 function upsertUser(data: UserJSON, clerkUpdatedAt: Date) {
@@ -113,5 +116,65 @@ export const syncWaitlistEntryUpdated = inngest.createFunction(
   async ({ event }) => {
     const data = event.data as WaitlistEntryJSON;
     await upsertWaitlistEntry(data, new Date(event.ts ?? data.updated_at));
+  },
+);
+
+// --- Host subscription lifecycle -> audit_log ---
+// Clerk Billing is the source of truth for subscription state (no mirrored Postgres
+// table); this just gives admins a local trail of what happened and when.
+
+type BillingSubscriptionEventData = { id: string; payer?: { user_id?: string }; status?: string };
+type BillingSubscriptionItemEventData = { id: string; status?: string; plan?: { slug?: string } };
+
+function logBillingEvent(action: string, data: BillingSubscriptionEventData | BillingSubscriptionItemEventData) {
+  const actorUserId = "payer" in data ? (data.payer?.user_id ?? null) : null;
+  return logAudit({
+    actorUserId,
+    action,
+    targetType: "subscription",
+    targetId: data.id,
+    metadata: { status: data.status, planSlug: "plan" in data ? data.plan?.slug : undefined },
+  });
+}
+
+export const auditSubscriptionCreated = inngest.createFunction(
+  { id: "audit-subscription-created", triggers: [{ event: "clerk/subscription.created" }] },
+  async ({ event }) => {
+    await logBillingEvent("subscription.created", event.data as BillingSubscriptionEventData);
+  },
+);
+
+export const auditSubscriptionUpdated = inngest.createFunction(
+  { id: "audit-subscription-updated", triggers: [{ event: "clerk/subscription.updated" }] },
+  async ({ event }) => {
+    await logBillingEvent("subscription.updated", event.data as BillingSubscriptionEventData);
+  },
+);
+
+export const auditSubscriptionItemActive = inngest.createFunction(
+  { id: "audit-subscription-item-active", triggers: [{ event: "clerk/subscriptionItem.active" }] },
+  async ({ event }) => {
+    await logBillingEvent("subscriptionItem.active", event.data as BillingSubscriptionItemEventData);
+  },
+);
+
+export const auditSubscriptionItemCanceled = inngest.createFunction(
+  { id: "audit-subscription-item-canceled", triggers: [{ event: "clerk/subscriptionItem.canceled" }] },
+  async ({ event }) => {
+    await logBillingEvent("subscriptionItem.canceled", event.data as BillingSubscriptionItemEventData);
+  },
+);
+
+export const auditSubscriptionItemPastDue = inngest.createFunction(
+  { id: "audit-subscription-item-past-due", triggers: [{ event: "clerk/subscriptionItem.pastDue" }] },
+  async ({ event }) => {
+    await logBillingEvent("subscriptionItem.pastDue", event.data as BillingSubscriptionItemEventData);
+  },
+);
+
+export const auditSubscriptionItemExpired = inngest.createFunction(
+  { id: "audit-subscription-item-expired", triggers: [{ event: "clerk/subscriptionItem.expired" }] },
+  async ({ event }) => {
+    await logBillingEvent("subscriptionItem.expired", event.data as BillingSubscriptionItemEventData);
   },
 );
