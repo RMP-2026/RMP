@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import * as Sentry from "@sentry/react-native";
 
 import { PermissionsProvider } from "@/lib/permissions-context";
+import { PostHogProvider } from "@/lib/posthog-provider";
 
 import "../../global.css";
 
@@ -23,9 +24,11 @@ if (!publishableKey) {
 function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <PermissionsProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </PermissionsProvider>
+      <PostHogProvider>
+        <PermissionsProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </PermissionsProvider>
+      </PostHogProvider>
     </ClerkProvider>
   );
 }

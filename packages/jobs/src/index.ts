@@ -1,4 +1,5 @@
 export { inngest } from "./inngest/client";
+export { logger } from "./logger";
 export {
   syncUserCreated,
   syncUserDeleted,
