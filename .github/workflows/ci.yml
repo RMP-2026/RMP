@@ -23,3 +23,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm turbo run lint typecheck build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
