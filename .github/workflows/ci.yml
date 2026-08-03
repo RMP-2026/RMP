@@ -25,3 +25,4 @@ jobs:
       - run: pnpm turbo run lint typecheck build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_bm9ybWFsLWJhc3MtMjIuY2xlcmsuYWNjb3VudHMuZGV2JA
