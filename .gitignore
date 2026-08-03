@@ -40,6 +40,13 @@ yarn-error.*
 
 example
 
-# generated native folders
-/ios
-/android
+# generated native folders (any app in the monorepo)
+ios/
+android/
+
+# Turborepo cache
+.turbo/
+
+# Next.js
+.next/
+next-env.d.ts

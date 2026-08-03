@@ -13,121 +13,178 @@ Ratelimit + PostHog + Axiom + Better Uptime + Resend + Twilio. No Flutter, no Fi
 
 ## Phase 0 — Monorepo scaffold + CI
 
-- [ ] Set repo-local git identity (`user.name = "RMP"`, `user.email =
+- [x] Set repo-local git identity (`user.name = "RMP"`, `user.email =
       "tohotnow@outlook.com"`)
-- [ ] Baseline commit of the current vanilla Expo scaffold
-- [ ] Create `apps/` and `packages/` directories
-- [ ] `git mv` the Expo app (`src`, `app.json`, `expo-env.d.ts`, `assets`, `package.json`,
-      `tsconfig.json`) into `apps/mobile/`
-- [ ] Remove `package-lock.json` (pnpm replaces npm at the root)
-- [ ] Add `pnpm-workspace.yaml` (`apps/*`, `packages/*`)
-- [ ] Add root `package.json` (`private: true`, `packageManager` pin, scripts delegating
+- [x] Baseline commit of the current state before restructuring (commit `d87c939` on
+      `king`; full pre-rewrite copy also archived at
+      `C:\Users\tohot\RMP-backup-pre-monorepo-2026-08-01`)
+- [x] Create `apps/` and `packages/` directories
+- [x] Move the Expo app (`src`, `app.json`, `expo-env.d.ts`, `assets`, `package.json`,
+      `tsconfig.json`, plus `babel.config.js`/`eslint.config.js`/`global.css`/
+      `metro.config.js`/`nativewind-env.d.ts`/`tailwind.config.js`/`patches/`/`eas.json`/
+      `drizzle.config.ts`/`.env.local`/`android/` — not itemized in the original list but
+      clearly belong with the app) into `apps/mobile/`. Note: `git mv` on `src/` itself
+      failed with a Windows file-lock (`Permission denied`) — worked around with a
+      verified copy + delete instead of a rename; git still recorded it as a rename via
+      similarity detection
+- [x] Remove `package-lock.json` (pnpm replaces npm at the root)
+- [x] Add `pnpm-workspace.yaml` (`apps/*`, `packages/*`) — also holds `allowBuilds` for
+      the packages pnpm blocks native/postinstall scripts for by default (`sharp`,
+      `esbuild`, `@sentry/cli`, `unrs-resolver`, etc.) — all approved, all trusted
+      ecosystem packages the toolchain needs
+- [x] Add root `package.json` (`private: true`, `packageManager` pin, scripts delegating
       to `turbo run <task>`)
-- [ ] Add `turbo.json` pipeline (`build`, `dev`, `lint`, `typecheck`, `test`)
-- [ ] Add root `tsconfig.json` project-reference hub + `packages/config/tsconfig-base.json`
-- [ ] Rename `apps/mobile/package.json` name to `@rmp/mobile`
-- [ ] Configure `apps/mobile/metro.config.js` for pnpm/workspace symlink resolution
+- [x] Add `turbo.json` pipeline (`build`, `dev`, `lint`, `typecheck`, `test`)
+- [x] Add root `tsconfig.json` project-reference hub + `packages/config/tsconfig-base.json`
+- [x] Rename `apps/mobile/package.json` name to `@rmp/mobile`
+- [x] Configure `apps/mobile/metro.config.js` for pnpm/workspace symlink resolution
       (`watchFolders`, `nodeModulesPaths`, `unstable_enableSymlinks`,
       `disableHierarchicalLookup`)
-- [ ] Scaffold `apps/web` via `create-next-app` (TypeScript, App Router, Tailwind), rename
-      to `@rmp/web`
-- [ ] Scaffold empty `packages/db`, `packages/shared`, `packages/api`, `packages/jobs`,
-      `packages/config` with minimal stubs
-- [ ] Create Neon project (main branch = prod)
-- [ ] Create Sentry projects for both apps
-- [ ] Create PostHog project, initialize SDK in both apps (`posthog-js` web,
-      `posthog-react-native` mobile) — events wired progressively in later phases
-- [ ] Wire Axiom log drain for `apps/web` / `packages/jobs`
-- [ ] Add `.github/workflows/ci.yml` running `turbo run lint typecheck build`
-- [ ] **Done-gate**: `pnpm install` + `pnpm turbo run build lint typecheck` all green;
-      `expo start` boots the default screen; `next dev` boots the default page; a test
-      Sentry/PostHog event reaches both dashboards
+- [x] Scaffold `apps/web` via `create-next-app` (TypeScript, App Router, Tailwind), rename
+      to `@rmp/web`; pinned `turbopack.root` in `next.config.ts` to stop it from picking
+      up an unrelated lockfile elsewhere on disk
+- [x] Scaffold empty `packages/db`, `packages/shared`, `packages/api`, `packages/jobs`,
+      `packages/config` with minimal stubs (each a real workspace member: `package.json` +
+      `tsconfig.json` extending the shared base + a placeholder `src/index.ts`)
+- [ ] Create Neon project (main branch = prod) — **needs you**: no Neon account/API
+      access available to me; you already have a dev database (`DATABASE_URL`), this item
+      is specifically about a separate prod branch/project
+- [ ] Create Sentry projects for both apps — **needs you**: no Sentry account access;
+      mobile already has a Sentry DSN configured, web needs its own project
+- [ ] Create PostHog project, initialize SDK in both apps — **needs you** for project
+      creation/API key; SDK wiring itself is a later-phase code task once the key exists
+- [ ] Wire Axiom log drain for `apps/web` / `packages/jobs` — **needs you**: no Axiom
+      account access
+- [x] Add `.github/workflows/ci.yml` running `pnpm install --frozen-lockfile` +
+      `turbo run lint typecheck build`
+- [x] **Done-gate** (partial — see step-by-step test below): `pnpm install` +
+      `pnpm turbo run build lint typecheck` all green except two **pre-existing**
+      `apps/mobile` typedRoutes errors in `(auth)/forgot-password.tsx` and
+      `(auth)/sign-in.tsx` (present before this rewrite, unrelated to it — left alone
+      rather than guessed at). `expo start`/`next dev` booting and the Sentry/PostHog test
+      event are yours to verify — I don't start dev servers or have those dashboards.
 
 ## Phase 1 — Auth + data layer
 
-- [ ] Write full Drizzle schema (`users`, `companies`, `company_staff`, `vehicles`,
+- [x] Write full Drizzle schema (`users`, `companies`, `company_staff`, `vehicles`,
       `bookings`, `booking_reservations`, `documents`, `messages`, `subscriptions`,
       `payouts`, `notifications`, `admin_audit_log`, `inspections`,
       `booking_extensions`, `favorites`, `promo_codes`, `promo_redemptions`,
       `deposit_holds`, `damage_claims`, `reviews`, `support_tickets`,
-      `support_ticket_messages`, `chargebacks`) in `packages/db/src/schema/`
-- [ ] Enable Postgres extensions: `btree_gist`, `cube`, `earthdistance`, `pg_trgm`
-- [ ] Add the `bookings_no_overlap` `EXCLUDE USING gist` double-booking constraint,
-      scoped via `WHERE (status IN (<blocking statuses>))` to `pending`/`approved`/
-      `active`/`blocked`, using half-open `daterange(start_date, end_date, '[)')`
-      overlap; define this blocking-status set as one shared constant
-      (`packages/shared`) so the Phase 3 search-availability query stays consistent
-      with it instead of re-deriving its own list
-- [ ] Run initial Drizzle migration against Neon
-- [ ] Wire Clerk into `apps/mobile` (Google + Apple OAuth only, `@clerk/clerk-expo`)
-- [ ] Wire Clerk into `apps/web` (`@clerk/nextjs`), add `middleware.ts` role gate
-- [ ] Add Clerk webhook (`user.created`/`updated`/`deleted`) syncing into `users`
-- [ ] Add phone number collection + verification (Twilio Verify, decoupled from Clerk
-      sign-in) as a post-signup step, stored on `users`, gating SMS notification opt-in
-- [ ] Stand up `packages/api` with `trpc.ts` (context + `public`/`protected`/`company`/
+      `support_ticket_messages`, `chargebacks`) in `packages/db/src/schema/`.
+      `users.role` is `customer`/`admin` only — company-level access is
+      `company_staff` membership (`owner`/`staff`), not a platform role
+- [x] Enable Postgres extensions: `btree_gist`, `cube`, `earthdistance`, `pg_trgm`
+      (plus `pgcrypto` for the uuid PK columns) — `packages/db/src/extensions-and-constraints.sql`
+- [x] Add the `bookings_no_overlap` `EXCLUDE USING gist` double-booking constraint,
+      scoped to `pending`/`approved`/`active`/`blocked` via half-open
+      `daterange(start_date, end_date, '[)')` overlap; the blocking-status set lives
+      once in `packages/shared/src/booking-status.ts`
+      (`BLOCKING_BOOKING_STATUSES`) for Phase 3's search query to reuse
+- [x] Run initial Drizzle migration against Neon — required first dropping the
+      pre-PLAN.md RBAC tables (`permissions`/`roles`/`role_permissions`/`audit_log`)
+      and reshaping `users` (name -> first_name/last_name, role enum 5 values -> 2),
+      confirmed with you before running since it was destructive; both are backed up
+      (commit `d87c939`, folder backup)
+- [x] Wire Clerk into `apps/mobile` (Google + Apple OAuth) — already done pre-rewrite
+      via `useSSO()`; verified both providers enabled on the Clerk instance and the
+      `rmp` deep-link scheme is configured
+- [x] Wire Clerk into `apps/web` (`@clerk/nextjs`), add `proxy.ts` role gate (Next.js
+      16 renamed `middleware.ts` -> `proxy.ts`) — added a `metadata` session claim
+      (Clerk Dashboard) so `sessionClaims.metadata.role` is readable without a DB
+      round-trip; admin routes 404 for non-admins, company-tier auth is a DB check
+      inside packages/api's `companyProcedure`, not middleware
+- [x] Add Clerk webhook (`user.created`/`updated`/`deleted`) syncing into `users` —
+      `apps/web/src/app/api/webhooks/clerk` -> Inngest -> `packages/jobs`. The old
+      `apps/mobile` copy of this is now redundant (see note below)
+- [x] Add phone number collection + verification (Twilio Verify, decoupled from Clerk
+      sign-in) — `packages/api`'s `phone.sendCode`/`phone.verifyCode`; throws a clear
+      `PRECONDITION_FAILED` until `TWILIO_*` env vars are set (**needs you** — no
+      Twilio account access available)
+- [x] Stand up `packages/api` with `trpc.ts` (context + `public`/`protected`/`company`/
       `admin` procedure builders) and a round-trip `me` router
-- [ ] Add Upstash Ratelimit middleware to the tRPC procedure builders, applied first to
-      auth/signup paths
-- [ ] Mount tRPC route handler in `apps/web` (`/api/trpc/[trpc]`, Node runtime)
-- [ ] Wire tRPC client in `apps/mobile` with Clerk bearer token
-- [ ] Add role-gated route-group skeletons in `apps/web`
+- [x] Add Upstash Ratelimit middleware to the tRPC procedure builders (on
+      `protectedProcedure`, the base every other tier builds on) — fails open with a
+      console warning until `UPSTASH_REDIS_REST_URL`/`_TOKEN` are set (**needs you** —
+      no Upstash account access available)
+- [x] Mount tRPC route handler in `apps/web` (`/api/trpc/[trpc]`, Node runtime)
+- [x] Wire tRPC client in `apps/mobile` with Clerk bearer token — `apps/mobile/src/lib/trpc.ts`;
+      `EXPO_PUBLIC_API_URL` must point at wherever `apps/web` is running
+- [x] Add role-gated route-group skeletons in `apps/web`
       (`(dashboard)/company`, `(dashboard)/admin`)
-- [ ] **Done-gate**: sign in via Google or Apple on both mobile and web, `users` row
-      syncs correctly, authenticated `trpc.me.get()` succeeds from both apps, and a
-      rate-limit-exceeded request is correctly rejected
+- [x] **Done-gate** (partial — see step-by-step test below): `pnpm turbo run build lint
+      typecheck` all green. Signing in on both apps, the `users` row syncing, and
+      `trpc.me.get()` succeeding are yours to verify — I can't drive a browser/device or
+      start dev servers. Rate-limit rejection can't be tested until Upstash is configured.
 
 ## Phase 2 — Company onboarding + admin approval
 
-- [ ] Build "Join as Host" application flow (mobile form)
-- [ ] Add required cancellation-window selection (24h or 48h, one must be chosen) to
-      the application, stored as `companies.cancellationWindowHours`
-- [ ] Add ImageKit doc upload for business license / EIN / insurance
-- [ ] Add rental-agreement contract PDF upload to the application (same `documents` +
-      ImageKit flow, new document type) — each company brings its own contract, not a
-      shared master template. Each upload creates a new immutable, versioned
-      `documents` row (never overwrites/mutates a prior version) so a past version
-      remains permanently retrievable by ID
-- [ ] Build admin pending-applications queue (`apps/web`)
-- [ ] Admin approval must explicitly include reviewing the uploaded rental-agreement
-      PDF, not just KYC/business documents — it's the renter's real legal exposure.
-      Approval is recorded against that specific document version (not "the
-      company's contract" generically); a company replacing its PDF later creates a
-      new unapproved version that must clear admin review before it can be used as a
-      DocuSign envelope source for any new booking
-- [ ] Add `admin_audit_log` writes on every admin approve/reject action
-- [ ] Set up Stripe Connect (Express) onboarding, hosted flow
-- [ ] Add Stripe `account.updated` webhook handler
-- [ ] Set up Stripe Billing subscription via Stripe Checkout with `trial_period_days`
-      (1-month trial)
-- [ ] Wire Inngest: trial-end job
-- [ ] Wire Inngest: grace-period job (`invoice.payment_failed` → 3-day
-      `step.sleepUntil` → `paused`, with cancel-on-event for `invoice.payment_succeeded`)
-- [ ] Define `paused` semantics precisely: vehicles hidden from search/public pages,
-      new booking requests rejected, new staff invites blocked — but any booking
-      already active/approved before the pause continues its normal lifecycle
-      uninterrupted (handoff, return, messaging, overage billing all still work).
-      Bookings sitting in `pending` at the moment the company pauses are
-      auto-declined by the same pause job (company staff can no longer act on new
-      business while paused, so a stale pending request can't be left in limbo).
-      This races other writers of `bookings.status` (customer cancellation, a
-      concurrent company decline), so the job must first atomically
-      compare-and-set the booking `pending -> declined`
-      (`UPDATE bookings SET status = 'declined' WHERE id = $1 AND status =
-      'pending'`, checking rows-affected) before touching payment state. Only if
-      that CAS succeeds does the job proceed: void the PaymentIntent authorization
-      (never captured, so this is a void, not a refund) and notify the customer —
-      the `declined` status is already outside the
-      `pending`/`approved`/`active`/`blocked` blocking-status set, so the exclusion
-      constraint releases the held dates as soon as the CAS commits. If the CAS
-      affects zero rows (booking was no longer `pending`), the job no-ops on that
-      booking and leaves its payment state untouched — whichever other flow won
-      the race already owns the void/refund/capture decision. This only affects
-      `pending`; `approved`/`active` bookings are unaffected per above
-- [ ] Build staff invite flow with seat-limit enforcement (1 / 5 / unlimited by tier)
-- [ ] Apply rate limiting to document-submission endpoints (Persona/DocuSign calls cost
-      money per use)
-- [ ] **Done-gate**: apply → admin-approve → Connect+Billing onboarding → staff invite
-      within tier limits, all reflected live to admin
+- [x] Build "Join as Host" application flow (mobile form) —
+      `apps/mobile/src/app/(home)/become-host/apply.tsx`; `become-host/index.tsx` now
+      checks `company.mine` first and only shows "Get started" (→ apply) when the user
+      has no company yet, shows a pending/rejected state otherwise, and skips straight
+      to the existing vehicle-listing flow once approved
+- [x] Add required cancellation-window selection (24h or 48h) to the application,
+      stored as `companies.cancellationWindowHours`
+- [x] Add ImageKit doc upload for business license / EIN / insurance —
+      `packages/api`'s `upload.getAuthParams` (signed direct-to-ImageKit upload) +
+      `apps/mobile/src/lib/imagekit-upload.ts`; replaces the old mocked-upload TODO in
+      the pre-existing `become-host/photos.tsx`, though that screen itself is unchanged
+      this phase
+- [x] Add rental-agreement contract PDF upload (same flow, `expo-document-picker` for
+      the PDF vs. `expo-image-picker` for photos) — `company.submitApplication` requires
+      all four document types before creating the company row; each is a fresh,
+      immutable `documents` row
+- [x] Build admin pending-applications queue (`apps/web`) —
+      `(dashboard)/admin/page.tsx`, per-document approve/reject plus a company-level
+      approve/reject; company approval is blocked until every document is individually
+      approved
+- [x] Admin approval requires the rental-agreement PDF (and every other document)
+      individually reviewed first — `admin.approveCompany` throws
+      `PRECONDITION_FAILED` listing what's still pending; `admin.reviewDocument` records
+      the decision against that exact `documents.id`, never "the company's contract" generically
+- [x] Add `admin_audit_log` writes on every admin approve/reject action (`document.approved`/
+      `document.rejected`/`company.approved`/`company.rejected`, all with `actorUserId`)
+- [x] Set up Stripe Connect (Express) onboarding, hosted flow —
+      `billing.connectOnboarding` (Account + Account Link)
+- [x] Add Stripe `account.updated` webhook handler — `apps/web/src/app/api/webhooks/stripe` ->
+      Inngest -> `packages/jobs`'s `syncStripeAccountUpdated`
+- [x] Set up Stripe Billing subscription via Stripe Checkout with `trial_period_days: 30`
+      — `billing.checkout`; needs `STRIPE_PRICE_{STARTER,PROFESSIONAL,PREMIUM}` price
+      IDs once a real Stripe account exists
+- [x] Wire Inngest: trial-end job (`stripeTrialWillEnd`) — keeps `subscriptions.trial_ends_at`
+      current; actual notification send is Phase 5 (Resend/Twilio not wired to this yet)
+- [x] Wire Inngest: grace-period job (`stripeGracePeriod`) — `step.sleep("3d")` after
+      `invoice.payment_failed`, `cancelOn` matching `invoice.payment_succeeded` by
+      Stripe customer id (Inngest's built-in cancellation, equivalent to a race against
+      `step.waitForEvent`)
+- [x] `paused` semantics: company + subscription flip to `paused`/`past_due`, and any
+      `pending` booking for that company is auto-declined (a scoped `UPDATE ... WHERE
+      status = 'pending'`, so it can't touch a booking another writer already moved).
+      **Partial**: PaymentIntent voiding and customer notification aren't wired — there's
+      no real booking/payment-creation flow yet to attach them to (Phase 4). Vehicles
+      hidden from search and new-booking-rejection are enforced by Phase 3's search
+      query and Phase 4's booking creation respectively, once those exist and check
+      `company.status`. New-staff-invite-blocking is enforced now (`staff.invite` throws
+      if the company is paused)
+- [x] Build staff invite flow with seat-limit enforcement (1 Starter / 5 Professional /
+      unlimited Premium) — `staff.invite`; invites an existing RMP user by email (no
+      email-invitation-of-new-users yet, that's Resend/Phase 5 territory)
+- [x] Apply rate limiting to document-submission endpoints — inherited for free:
+      `company.submitApplication` and `upload.getAuthParams` build on `protectedProcedure`,
+      which already rate-limits first (Phase 1)
+- [x] **Done-gate** (partial — see step-by-step test below): `pnpm turbo run build lint
+      typecheck` all green (a real bug surfaced and got fixed here: tRPC rejects `apply`
+      as a procedure name — collides with `Function.prototype.apply` — renamed to
+      `company.submitApplication`). The actual apply → approve → Connect/Billing →
+      invite flow needs Stripe + ImageKit credentials to run end-to-end — yours to
+      verify once those exist; see step-by-step below for what's testable now.
+
+**Needs you**: Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SIGNING_SECRET`,
+`STRIPE_PRICE_*`) and ImageKit (`IMAGEKIT_*`) credentials — no account access available
+for either. Note: a "claude.ai Stripe" MCP connector is available but needs your
+authorization (claude.ai connector settings) before I could use it instead of the
+hand-written `stripe` SDK calls here.
 
 ## Phase 3 — Vehicle listing + search
 

@@ -1,21 +1,25 @@
 {
-  "extends": "expo/tsconfig.base",
-  "compilerOptions": {
-    "strict": true,
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/assets/*": [
-        "./assets/*"
-      ]
+  "files": [],
+  "references": [
+    {
+      "path": "apps/mobile"
+    },
+    {
+      "path": "apps/web"
+    },
+    {
+      "path": "packages/db"
+    },
+    {
+      "path": "packages/shared"
+    },
+    {
+      "path": "packages/api"
+    },
+    {
+      "path": "packages/jobs"
     }
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-  ]
+  ],
+  "compilerOptions": {},
+  "extends": "expo/tsconfig.base"
 }
